@@ -1,5 +1,5 @@
 // ============================================
-// DEPORTES - VERSIÓN OPENLAYERS
+// DEPORTES - VERSIÓN OPTIMIZADA PARA MÓVILES
 // ============================================
 
 // Variables globales
@@ -16,7 +16,7 @@ let deporteMarkerLayer = null;
 // INICIALIZAR DEPORTES
 // ============================================
 async function inicializarDeportes() {
-    console.log('🏟️ Inicializando sistema de centros deportivos...');
+    console.log('🏟️ Inicializando sistema de centros deportivos (modo optimizado)...');
     
     await gestorDeportes.cargarDatos();
     
@@ -44,7 +44,7 @@ async function inicializarDeportes() {
 // CREAR CAPAS DE DEPORTES
 // ============================================
 function crearCapasDeportes() {
-    // Capa para polígonos
+    // Capa para polígonos - OCULTA POR DEFECTO
     deportePolygonLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
@@ -56,15 +56,19 @@ function crearCapasDeportes() {
     });
     map.addLayer(deportePolygonLayer);
     
-    // Capa para marcadores
+    // Capa para marcadores - SOLO EMOJI (sin círculo)
     deporteMarkerLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
+            const deporteId = feature.get('deporteId');
             const isActive = feature.get('active') || false;
             const color = feature.get('color') || '#088729';
             const emoji = feature.get('emoji') || '🏟️';
-            return crearEstiloMarcadorDeporte(isActive, color, emoji);
-        }
+            const deporteData = feature.get('deporteData');
+            return crearEstiloMarcadorDeporte(deporteId, isActive, color, emoji, deporteData);
+        },
+        updateWhileAnimating: true, // Mejora rendimiento en móviles
+        updateWhileInteracting: true
     });
     map.addLayer(deporteMarkerLayer);
 }
@@ -92,7 +96,7 @@ function crearFeatureDeporte(deporteId, deporte) {
         deportePolygonLayer.getSource().addFeature(polygonFeature);
         deportesPolygons[deporteId] = polygonFeature;
         
-        // Crear marcador (usar iconCoords si existe, si no coords)
+        // Crear marcador - SIN CÍRCULO, SOLO EMOJI + NOMBRE
         const markerCoords = deporte.iconCoords ? 
             ol.proj.fromLonLat(deporte.iconCoords) : 
             ol.proj.fromLonLat(deporte.coords);
@@ -131,28 +135,130 @@ function crearEstiloPoligonoDeporte(active = false, color = '#088729') {
     });
 }
 
-function crearEstiloMarcadorDeporte(active = false, color = '#088729', emoji = '🏟️') {
-    const activeColor = active ? darkenHex(color, 30) : color;
+// ============================================
+// NUEVO ESTILO: EMOJI + NOMBRE SIN CÍRCULO
+// ============================================
+function crearEstiloMarcadorDeporte(deporteId, active = false, color = '#088729', emoji = '🏟️', deporteData = null) {
+    // Colores según estado
+    const textColor = active ? '#FFFFFF' : '#333333';
+    const bgColor = active ? darkenHex(color, 30) : 'transparent';
+    
+    // Tamaño de fuente adaptativo según zoom
+    const zoom = map.getView().getZoom();
+    let emojiSize = 18;
+    let nameSize = 10;
+    let padding = 3;
+    
+    if (zoom >= 18) {
+        emojiSize = 28;
+        nameSize = 13;
+        padding = 6;
+    } else if (zoom >= 16) {
+        emojiSize = 24;
+        nameSize = 11;
+        padding = 5;
+    } else if (zoom >= 14) {
+        emojiSize = 20;
+        nameSize = 9;
+        padding = 4;
+    } else if (zoom >= 12) {
+        emojiSize = 16;
+        nameSize = 8;
+        padding = 3;
+    } else {
+        emojiSize = 14;
+        nameSize = 7;
+        padding = 2;
+    }
+    
+    // Obtener nombre corto para mostrar (máximo 12 caracteres)
+    let nombreMostrar = deporteId;
+    if (deporteData && deporteData.nombre) {
+        nombreMostrar = deporteData.nombre.length > 12 ? 
+            deporteData.nombre.substring(0, 10) + '…' : 
+            deporteData.nombre;
+    }
+    
+    // Opción 1: Emoji + Nombre (recomendado)
+    //const displayText = `${emoji} ${nombreMostrar}`;
+    
+    // Opción 2: Solo emoji (más limpio)
+    const displayText = emoji;
+    
+    // Opción 3: Emoji arriba, nombre abajo
+    // const displayText = `${emoji}\n${nombreMostrar}`;
+    
+    // Opción 4: Emoji + Tipo de deporte (si existe)
+    // const tipo = deporteData?.tipo || '';
+    // const displayText = `${emoji} ${tipo}`;
     
     return new ol.style.Style({
-        image: new ol.style.Circle({
-            radius: 22,
+        text: new ol.style.Text({
+            text: displayText,
+            font: `${nameSize}px "Segoe UI", Arial, sans-serif`,
             fill: new ol.style.Fill({
-                color: active ? activeColor : color
+                color: textColor
             }),
             stroke: new ol.style.Stroke({
-                color: active ? darkenHex(color, 50) : '#C4A882',
-                width: 3
-            })
-        }),
-        text: new ol.style.Text({
-            text: emoji,
-            font: '20px Arial',
+                color: active ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.9)',
+                width: active ? 3 : 2
+            }),
             textAlign: 'center',
             textBaseline: 'middle',
-            offsetY: 0
+            offsetY: 0,
+            backgroundFill: new ol.style.Fill({
+                color: bgColor
+            }),
+            backgroundStroke: new ol.style.Stroke({
+                color: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+                width: 2
+            }),
+            padding: [padding, padding + 4, padding, padding + 4]
         })
     });
+}
+
+// ============================================
+// FUNCIONES DE UTILIDAD PARA COLORES
+// ============================================
+function hexToRgba(hex, alpha = 1) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return `rgba(245, 222, 179, ${alpha})`;
+    
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function darkenHex(hex, amount = 20) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) {
+        c = c.split('').map(char => char + char).join('');
+    }
+    
+    let r = parseInt(c.substring(0, 2), 16);
+    let g = parseInt(c.substring(2, 4), 16);
+    let b = parseInt(c.substring(4, 6), 16);
+    
+    r = Math.max(0, r - amount);
+    g = Math.max(0, g - amount);
+    b = Math.max(0, b - amount);
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// ============================================
+// CALCULAR CENTRO DE POLÍGONO
+// ============================================
+function calcularCentroPoligono(coords) {
+    let x = 0, y = 0;
+    coords.forEach(coord => {
+        x += coord[0];
+        y += coord[1];
+    });
+    return [x / coords.length, y / coords.length];
 }
 
 // ============================================
@@ -173,7 +279,7 @@ function abrirModalDeporte(deporteId) {
         titulo.textContent = deporte.emoji + ' ' + (deporte.nombre || 'Centro Deportivo');
     }
     
-    // Generar lista de deportes (en este caso solo uno, pero mantengo la estructura)
+    // Generar lista de deportes
     const lista = document.getElementById('listaDeportes');
     if (!lista) return;
     
@@ -183,6 +289,10 @@ function abrirModalDeporte(deporteId) {
         deporte.fotos.map(f => `<img src="${f}" alt="${deporte.nombre}" onerror="this.style.display='none'">`).join('') :
         '<p style="color:#94a3b8;font-size:13px;padding:8px;">Sin imágenes disponibles</p>';
     
+    // Obtener el tipo de deporte o mostrar información adicional
+    const tipoInfo = deporte.tipo || 'Zona Deportiva';
+    const descripcion = deporte.descripcion || '';
+    
     const item = document.createElement('div');
     item.className = 'deporte-card';
     item.innerHTML = `
@@ -190,7 +300,8 @@ function abrirModalDeporte(deporteId) {
             ${fotosHTML}
         </div>
         <div class="deporte-info">
-            <div class="deporte-tipo">${deporte.tipo || 'Zona Deportiva'}</div>
+            <div class="deporte-tipo">${deporte.emoji} ${tipoInfo}</div>
+            ${descripcion ? `<p class="deporte-descripcion">${descripcion}</p>` : ''}
             <button onclick="trazarRutaADeporte('${deporteId}')">
                 <i class="fas fa-route"></i> Trazar ruta
             </button>
@@ -283,6 +394,9 @@ function trazarRutaADeporte(deporteId) {
             setTimeout(() => {
                 map.removeLayer(routeLayer);
                 map.removeLayer(destMarkerLayer);
+                if (deportePolygonLayer) {
+                    deportePolygonLayer.setVisible(false);
+                }
             }, 10000);
         } catch (error) {
             console.error('❌ Error al trazar ruta:', error);
@@ -295,7 +409,7 @@ function trazarRutaADeporte(deporteId) {
 // ============================================
 // ACTIVAR DEPORTE
 // ============================================
-function activarDeporte(deporteId) {
+function activarDeporte(deporteId, mostrarPoligono = false) {
     // Desactivar deporte anterior
     if (activeDeporteId !== null) {
         const prevPolygon = deportesPolygons[activeDeporteId];
@@ -336,18 +450,10 @@ function activarDeporte(deporteId) {
             duration: 800
         });
     }
+    
     if (mostrarPoligono && deportePolygonLayer) {
         deportePolygonLayer.setVisible(true);
-    } 
-    else {
-        if (deportePolygonLayer) {
-            deportePolygonLayer.setVisible(false);
-        }
-    }
-    if (mostrarPoligono && deportePolygonLayer) {
-        deportePolygonLayer.setVisible(true);
-    } 
-    else {
+    } else {
         if (deportePolygonLayer) {
             deportePolygonLayer.setVisible(false);
         }
@@ -450,14 +556,11 @@ function configurarEventosDeportes() {
     });
     
     // === EVENTOS DEL MODAL DE DEPORTES ===
-    // Botón de cerrar (X)
     const closeBtn = document.getElementById('deporteModalClose');
     if (closeBtn) {
         closeBtn.addEventListener('click', cerrarModalDeporte);
-        console.log('✅ Evento cerrar modal deportes configurado');
     }
     
-    // Clic fuera del modal
     const modal = document.getElementById('deporteModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -465,7 +568,6 @@ function configurarEventosDeportes() {
                 cerrarModalDeporte();
             }
         });
-        console.log('✅ Evento click fuera modal deportes configurado');
     }
     
     // Cerrar con tecla ESC
@@ -482,8 +584,14 @@ function configurarEventosDeportes() {
     const toggleBtn = document.getElementById('toggleDeportesBtn');
     if (toggleBtn) {
         toggleBtn.addEventListener('click', toggleDeportes);
-        console.log('✅ Evento toggle deportes configurado');
     }
+    
+    // === Actualizar estilos al hacer zoom ===
+    map.getView().on('change:resolution', function() {
+        if (deporteMarkerLayer) {
+            deporteMarkerLayer.changed();
+        }
+    });
     
     console.log('✅ Eventos de deportes configurados correctamente');
 }

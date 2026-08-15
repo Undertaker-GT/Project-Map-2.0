@@ -1,5 +1,5 @@
 // ============================================
-// ÁREAS INFANTILES - VERSIÓN OPENLAYERS
+// ÁREAS INFANTILES - VERSIÓN OPTIMIZADA PARA MÓVILES
 // ============================================
 
 // Variables globales
@@ -16,7 +16,7 @@ let areaMarkerLayer = null;
 // INICIALIZAR ÁREAS INFANTILES
 // ============================================
 async function inicializarAreasInfantiles() {
-    console.log('🛝 Inicializando sistema de áreas infantiles...');
+    console.log('🛝 Inicializando sistema de áreas infantiles (modo optimizado)...');
     
     await gestorAreasInfantiles.cargarDatos();
     
@@ -44,7 +44,7 @@ async function inicializarAreasInfantiles() {
 // CREAR CAPAS DE ÁREAS INFANTILES
 // ============================================
 function crearCapasAreas() {
-    // Capa para polígonos
+    // Capa para polígonos - OCULTA POR DEFECTO
     areaPolygonLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
@@ -56,15 +56,19 @@ function crearCapasAreas() {
     });
     map.addLayer(areaPolygonLayer);
     
-    // Capa para marcadores
+    // Capa para marcadores - SOLO EMOJI (sin círculo)
     areaMarkerLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
+            const areaId = feature.get('areaId');
             const isActive = feature.get('active') || false;
             const color = feature.get('color') || '#FFD700';
             const emoji = feature.get('emoji') || '🛝';
-            return crearEstiloMarcadorArea(isActive, color, emoji);
-        }
+            const areaData = feature.get('areaData');
+            return crearEstiloMarcadorArea(areaId, isActive, color, emoji, areaData);
+        },
+        updateWhileAnimating: true, // Mejora rendimiento en móviles
+        updateWhileInteracting: true
     });
     map.addLayer(areaMarkerLayer);
 }
@@ -92,7 +96,7 @@ function crearFeatureArea(areaId, area) {
         areaPolygonLayer.getSource().addFeature(polygonFeature);
         areasPolygons[areaId] = polygonFeature;
         
-        // Crear marcador (usar iconCoords si existe, si no coords)
+        // Crear marcador - SIN CÍRCULO, SOLO EMOJI + NOMBRE
         const markerCoords = area.iconCoords ? 
             ol.proj.fromLonLat(area.iconCoords) : 
             ol.proj.fromLonLat(area.coords);
@@ -131,28 +135,126 @@ function crearEstiloPoligonoArea(active = false, color = '#FFD700') {
     });
 }
 
-function crearEstiloMarcadorArea(active = false, color = '#FFD700', emoji = '🛝') {
-    const activeColor = active ? darkenHex(color, 30) : color;
+// ============================================
+// NUEVO ESTILO: EMOJI + NOMBRE SIN CÍRCULO
+// ============================================
+function crearEstiloMarcadorArea(areaId, active = false, color = '#FFD700', emoji = '🛝', areaData = null) {
+    // Colores según estado
+    const textColor = active ? '#FFFFFF' : '#333333';
+    const bgColor = active ? darkenHex(color, 30) : 'transparent';
+    
+    // Tamaño de fuente adaptativo según zoom
+    const zoom = map.getView().getZoom();
+    let emojiSize = 18;
+    let nameSize = 10;
+    let padding = 3;
+    
+    if (zoom >= 18) {
+        emojiSize = 28;
+        nameSize = 13;
+        padding = 6;
+    } else if (zoom >= 16) {
+        emojiSize = 24;
+        nameSize = 11;
+        padding = 5;
+    } else if (zoom >= 14) {
+        emojiSize = 20;
+        nameSize = 9;
+        padding = 4;
+    } else if (zoom >= 12) {
+        emojiSize = 16;
+        nameSize = 8;
+        padding = 3;
+    } else {
+        emojiSize = 14;
+        nameSize = 7;
+        padding = 2;
+    }
+    
+    // Obtener nombre corto para mostrar (máximo 12 caracteres)
+    let nombreMostrar = areaId;
+    if (areaData && areaData.nombre) {
+        nombreMostrar = areaData.nombre.length > 12 ? 
+            areaData.nombre.substring(0, 10) + '…' : 
+            areaData.nombre;
+    }
+    
+    // Opción 1: Emoji + Nombre (recomendado)
+    //const displayText = `${emoji} ${nombreMostrar}`;
+    
+    // Opción 2: Solo emoji (más limpio)
+    const displayText = emoji;
+    
+    // Opción 3: Emoji arriba, nombre abajo
+    // const displayText = `${emoji}\n${nombreMostrar}`;
     
     return new ol.style.Style({
-        image: new ol.style.Circle({
-            radius: 22,
+        text: new ol.style.Text({
+            text: displayText,
+            font: `${nameSize}px "Segoe UI", Arial, sans-serif`,
             fill: new ol.style.Fill({
-                color: active ? activeColor : color
+                color: textColor
             }),
             stroke: new ol.style.Stroke({
-                color: active ? darkenHex(color, 50) : '#C4A882',
-                width: 3
-            })
-        }),
-        text: new ol.style.Text({
-            text: emoji,
-            font: '20px Arial',
+                color: active ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.9)',
+                width: active ? 3 : 2
+            }),
             textAlign: 'center',
             textBaseline: 'middle',
-            offsetY: 0
+            offsetY: 0,
+            backgroundFill: new ol.style.Fill({
+                color: bgColor
+            }),
+            backgroundStroke: new ol.style.Stroke({
+                color: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+                width: 2
+            }),
+            padding: [padding, padding + 4, padding, padding + 4]
         })
     });
+}
+
+// ============================================
+// FUNCIONES DE UTILIDAD PARA COLORES
+// ============================================
+function hexToRgba(hex, alpha = 1) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return `rgba(245, 222, 179, ${alpha})`;
+    
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function darkenHex(hex, amount = 20) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) {
+        c = c.split('').map(char => char + char).join('');
+    }
+    
+    let r = parseInt(c.substring(0, 2), 16);
+    let g = parseInt(c.substring(2, 4), 16);
+    let b = parseInt(c.substring(4, 6), 16);
+    
+    r = Math.max(0, r - amount);
+    g = Math.max(0, g - amount);
+    b = Math.max(0, b - amount);
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// ============================================
+// CALCULAR CENTRO DE POLÍGONO
+// ============================================
+function calcularCentroPoligono(coords) {
+    let x = 0, y = 0;
+    coords.forEach(coord => {
+        x += coord[0];
+        y += coord[1];
+    });
+    return [x / coords.length, y / coords.length];
 }
 
 // ============================================
@@ -280,6 +382,9 @@ function trazarRutaArea(areaId) {
             setTimeout(() => {
                 map.removeLayer(routeLayer);
                 map.removeLayer(destMarkerLayer);
+                if (areaPolygonLayer) {
+                    areaPolygonLayer.setVisible(false);
+                }
             }, 10000);
         } catch (error) {
             console.error('❌ Error al trazar ruta:', error);
@@ -287,7 +392,6 @@ function trazarRutaArea(areaId) {
     } else {
         alert('No se pudo obtener tu ubicación actual. Activa el GPS e intenta de nuevo.');
     }
-    
 }
 
 // ============================================
@@ -440,14 +544,11 @@ function configurarEventosAreas() {
     });
     
     // === EVENTOS DEL MODAL DE ÁREAS ===
-    // Botón de cerrar (X)
     const closeBtn = document.getElementById('areaModalClose');
     if (closeBtn) {
         closeBtn.addEventListener('click', cerrarModalArea);
-        console.log('✅ Evento cerrar modal áreas configurado');
     }
     
-    // Clic fuera del modal
     const modal = document.getElementById('areaModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -455,7 +556,6 @@ function configurarEventosAreas() {
                 cerrarModalArea();
             }
         });
-        console.log('✅ Evento click fuera modal áreas configurado');
     }
     
     // Cerrar con tecla ESC
@@ -472,8 +572,14 @@ function configurarEventosAreas() {
     const toggleBtn = document.getElementById('toggleAreasBtn');
     if (toggleBtn) {
         toggleBtn.addEventListener('click', toggleAreas);
-        console.log('✅ Evento toggle áreas configurado');
     }
+    
+    // === Actualizar estilos al hacer zoom ===
+    map.getView().on('change:resolution', function() {
+        if (areaMarkerLayer) {
+            areaMarkerLayer.changed();
+        }
+    });
     
     console.log('✅ Eventos de áreas infantiles configurados correctamente');
 }

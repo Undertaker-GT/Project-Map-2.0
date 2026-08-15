@@ -1,5 +1,5 @@
 // ============================================
-// SALONES DE EVENTOS - VERSIÓN OPENLAYERS
+// SALONES DE EVENTOS - VERSIÓN OPTIMIZADA PARA MÓVILES
 // ============================================
 
 // Variables globales
@@ -16,7 +16,7 @@ let salonMarkerLayer = null;
 // INICIALIZAR SALONES DE EVENTOS
 // ============================================
 async function inicializarSalonesEventos() {
-    console.log('🏡 Inicializando sistema de salones de eventos...');
+    console.log('🏡 Inicializando sistema de salones de eventos (modo optimizado)...');
     
     await gestorSalonesEventos.cargarDatos();
     
@@ -44,27 +44,31 @@ async function inicializarSalonesEventos() {
 // CREAR CAPAS DE SALONES
 // ============================================
 function crearCapasSalones() {
-    // Capa para polígonos
+    // Capa para polígonos - OCULTA POR DEFECTO
     salonPolygonLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
             const isActive = feature.get('active') || false;
-            const color = feature.get('color') || '#FF4500';
+            const color = feature.get('color') || '#FF6B35';
             return crearEstiloPoligonoSalon(isActive, color);
         },
         visible: false
     });
     map.addLayer(salonPolygonLayer);
     
-    // Capa para marcadores
+    // Capa para marcadores - SOLO EMOJI (sin círculo)
     salonMarkerLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
+            const salonId = feature.get('salonId');
             const isActive = feature.get('active') || false;
-            const color = feature.get('color') || '#FF4500';
+            const color = feature.get('color') || '#FF6B35';
             const emoji = feature.get('emoji') || '🏡';
-            return crearEstiloMarcadorSalon(isActive, color, emoji);
-        }
+            const salonData = feature.get('salonData');
+            return crearEstiloMarcadorSalon(salonId, isActive, color, emoji, salonData);
+        },
+        updateWhileAnimating: true,
+        updateWhileInteracting: true
     });
     map.addLayer(salonMarkerLayer);
 }
@@ -87,12 +91,12 @@ function crearFeatureSalon(salonId, salon) {
             geometry: polygon,
             salonId: salonId,
             active: false,
-            color: salon.color || '#FF4500'
+            color: salon.color || '#FF6B35'
         });
         salonPolygonLayer.getSource().addFeature(polygonFeature);
         salonesPolygons[salonId] = polygonFeature;
         
-        // Crear marcador (usar iconCoords si existe, si no coords)
+        // Crear marcador - SIN CÍRCULO, SOLO EMOJI + NOMBRE
         const markerCoords = salon.iconCoords ? 
             ol.proj.fromLonLat(salon.iconCoords) : 
             ol.proj.fromLonLat(salon.coords);
@@ -101,7 +105,7 @@ function crearFeatureSalon(salonId, salon) {
             geometry: new ol.geom.Point(markerCoords),
             salonId: salonId,
             active: false,
-            color: salon.color || '#FF4500',
+            color: salon.color || '#FF6B35',
             emoji: salon.emoji || '🏡',
             salonData: salon
         });
@@ -118,7 +122,7 @@ function crearFeatureSalon(salonId, salon) {
 // ============================================
 // ESTILOS DE SALONES
 // ============================================
-function crearEstiloPoligonoSalon(active = false, color = '#FF4500') {
+function crearEstiloPoligonoSalon(active = false, color = '#FF6B35') {
     return new ol.style.Style({
         fill: new ol.style.Fill({
             color: active ? hexToRgba(color, 0.35) : hexToRgba(color, 0.15)
@@ -131,28 +135,126 @@ function crearEstiloPoligonoSalon(active = false, color = '#FF4500') {
     });
 }
 
-function crearEstiloMarcadorSalon(active = false, color = '#FF4500', emoji = '🏡') {
-    const activeColor = active ? darkenHex(color, 30) : color;
+// ============================================
+// NUEVO ESTILO: EMOJI + NOMBRE SIN CÍRCULO
+// ============================================
+function crearEstiloMarcadorSalon(salonId, active = false, color = '#FF6B35', emoji = '🏡', salonData = null) {
+    // Colores según estado
+    const textColor = active ? '#FFFFFF' : '#333333';
+    const bgColor = active ? darkenHex(color, 30) : 'transparent';
+    
+    // Tamaño de fuente adaptativo según zoom
+    const zoom = map.getView().getZoom();
+    let emojiSize = 18;
+    let nameSize = 10;
+    let padding = 3;
+    
+    if (zoom >= 18) {
+        emojiSize = 28;
+        nameSize = 13;
+        padding = 6;
+    } else if (zoom >= 16) {
+        emojiSize = 24;
+        nameSize = 11;
+        padding = 5;
+    } else if (zoom >= 14) {
+        emojiSize = 20;
+        nameSize = 9;
+        padding = 4;
+    } else if (zoom >= 12) {
+        emojiSize = 16;
+        nameSize = 8;
+        padding = 3;
+    } else {
+        emojiSize = 14;
+        nameSize = 7;
+        padding = 2;
+    }
+    
+    // Obtener nombre corto para mostrar (máximo 12 caracteres)
+    let nombreMostrar = salonId;
+    if (salonData && salonData.nombre) {
+        nombreMostrar = salonData.nombre.length > 12 ? 
+            salonData.nombre.substring(0, 10) + '…' : 
+            salonData.nombre;
+    }
+    
+    // Opción 1: Emoji + Nombre (recomendado)
+    //const displayText = `${emoji} ${nombreMostrar}`;
+    
+    // Opción 2: Solo emoji (más limpio)
+    // const displayText = emoji;
+    
+    // Opción 3: Emoji arriba, nombre abajo
+    const displayText = `${emoji}\n${nombreMostrar}`;
     
     return new ol.style.Style({
-        image: new ol.style.Circle({
-            radius: 22,
+        text: new ol.style.Text({
+            text: displayText,
+            font: `${nameSize}px "Segoe UI", Arial, sans-serif`,
             fill: new ol.style.Fill({
-                color: active ? activeColor : color
+                color: textColor
             }),
             stroke: new ol.style.Stroke({
-                color: active ? darkenHex(color, 50) : '#C4A882',
-                width: 3
-            })
-        }),
-        text: new ol.style.Text({
-            text: emoji,
-            font: '20px Arial',
+                color: active ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.9)',
+                width: active ? 3 : 2
+            }),
             textAlign: 'center',
             textBaseline: 'middle',
-            offsetY: 0
+            offsetY: 0,
+            backgroundFill: new ol.style.Fill({
+                color: bgColor
+            }),
+            backgroundStroke: new ol.style.Stroke({
+                color: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+                width: 2
+            }),
+            padding: [padding, padding + 4, padding, padding + 4]
         })
     });
+}
+
+// ============================================
+// FUNCIONES DE UTILIDAD PARA COLORES
+// ============================================
+function hexToRgba(hex, alpha = 1) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return `rgba(245, 222, 179, ${alpha})`;
+    
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function darkenHex(hex, amount = 20) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) {
+        c = c.split('').map(char => char + char).join('');
+    }
+    
+    let r = parseInt(c.substring(0, 2), 16);
+    let g = parseInt(c.substring(2, 4), 16);
+    let b = parseInt(c.substring(4, 6), 16);
+    
+    r = Math.max(0, r - amount);
+    g = Math.max(0, g - amount);
+    b = Math.max(0, b - amount);
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// ============================================
+// CALCULAR CENTRO DE POLÍGONO
+// ============================================
+function calcularCentroPoligono(coords) {
+    let x = 0, y = 0;
+    coords.forEach(coord => {
+        x += coord[0];
+        y += coord[1];
+    });
+    return [x / coords.length, y / coords.length];
 }
 
 // ============================================
@@ -167,19 +269,16 @@ function abrirModalSalon(salonId) {
     
     activeSalonId = salonId;
     
-    // Actualizar título
     const titulo = document.getElementById('salonTitulo');
     if (titulo) {
         titulo.textContent = salon.emoji + ' ' + (salon.nombre || 'Salón de Eventos');
     }
     
-    // Generar contenido
     const lista = document.getElementById('listaSalones');
     if (!lista) return;
     
     lista.innerHTML = '';
     
-    // Fotos
     const fotosHTML = salon.fotos && salon.fotos.length > 0 ?
         salon.fotos.map(f => `<img src="${f}" alt="${salon.nombre}" onerror="this.style.display='none'">`).join('') :
         '<p style="color:#94a3b8;font-size:13px;padding:8px;">Sin imágenes disponibles</p>';
@@ -193,6 +292,8 @@ function abrirModalSalon(salonId) {
         <div class="salon-info">
             <div class="salon-detalles">
                 <span class="salon-tipo">${salon.tipo || 'Salón de Eventos'}</span>
+                ${salon.capacidad ? `<p class="salon-capacidad">👥 Capacidad: ${salon.capacidad} personas</p>` : ''}
+                ${salon.direccion ? `<p class="salon-dir">📍 ${salon.direccion}</p>` : ''}
             </div>
             <button class="salon-btn" onclick="trazarRutaSalon('${salonId}')">
                 <i class="fas fa-route"></i> Trazar ruta
@@ -232,12 +333,11 @@ function trazarRutaSalon(salonId) {
             const userCoords = ol.proj.fromLonLat([currentPosition.lon, currentPosition.lat]);
             const destinoCoords = ol.proj.fromLonLat(salon.coords);
             
-            // Mostrar línea de ruta
             const routeLayer = new ol.layer.Vector({
                 source: new ol.source.Vector(),
                 style: new ol.style.Style({
                     stroke: new ol.style.Stroke({
-                        color: '#FF4500',
+                        color: '#FF6B35',
                         width: 4,
                         lineDash: [10, 5]
                     })
@@ -251,14 +351,13 @@ function trazarRutaSalon(salonId) {
             routeLayer.getSource().addFeature(routeFeature);
             map.addLayer(routeLayer);
             
-            // Mostrar marcador de destino
             const destMarkerLayer = new ol.layer.Vector({
                 source: new ol.source.Vector(),
                 style: new ol.style.Style({
                     image: new ol.style.Circle({
                         radius: 12,
                         fill: new ol.style.Fill({
-                            color: '#FF4500'
+                            color: '#FF6B35'
                         }),
                         stroke: new ol.style.Stroke({
                             color: '#FFFFFF',
@@ -275,17 +374,18 @@ function trazarRutaSalon(salonId) {
             destMarkerLayer.getSource().addFeature(destMarker);
             map.addLayer(destMarkerLayer);
             
-            // Animar vista
             map.getView().animate({
                 center: destinoCoords,
                 zoom: 18,
                 duration: 1000
             });
             
-            // Eliminar ruta después de 10 segundos
             setTimeout(() => {
                 map.removeLayer(routeLayer);
                 map.removeLayer(destMarkerLayer);
+                if (salonPolygonLayer) {
+                    salonPolygonLayer.setVisible(false);
+                }
             }, 10000);
         } catch (error) {
             console.error('❌ Error al trazar ruta:', error);
@@ -298,8 +398,7 @@ function trazarRutaSalon(salonId) {
 // ============================================
 // ACTIVAR SALÓN
 // ============================================
-function activarSalon(salonId) {
-    // Desactivar salón anterior
+function activarSalon(salonId, mostrarPoligono = false) {
     if (activeSalonId !== null) {
         const prevPolygon = salonesPolygons[activeSalonId];
         if (prevPolygon) {
@@ -313,7 +412,6 @@ function activarSalon(salonId) {
         }
     }
     
-    // Activar nuevo salón
     const polygon = salonesPolygons[salonId];
     if (polygon) {
         polygon.set('active', true);
@@ -328,7 +426,6 @@ function activarSalon(salonId) {
     
     activeSalonId = salonId;
     
-    // Centrar el mapa en el salón
     const salon = gestorSalonesEventos.getSalon(salonId);
     if (salon && salon.area && salon.area.length > 0) {
         const coords = salon.area.map(c => ol.proj.fromLonLat(c));
@@ -339,10 +436,10 @@ function activarSalon(salonId) {
             duration: 800
         });
     }
+    
     if (mostrarPoligono && salonPolygonLayer) {
         salonPolygonLayer.setVisible(true);
-    } 
-    else {
+    } else {
         if (salonPolygonLayer) {
             salonPolygonLayer.setVisible(false);
         }
@@ -411,7 +508,6 @@ function toggleSalones() {
 // CONFIGURAR EVENTOS
 // ============================================
 function configurarEventosSalones() {
-    // Click en marcadores de salones
     map.on('click', function(evt) {
         const features = map.getFeaturesAtPixel(evt.pixel, {
             hitTolerance: 15,
@@ -429,7 +525,6 @@ function configurarEventosSalones() {
         }
     });
     
-    // Hover para cambiar cursor
     map.on('pointermove', function(evt) {
         const pixel = map.getEventPixel(evt.originalEvent);
         const hit = map.hasFeatureAtPixel(pixel, {
@@ -444,15 +539,11 @@ function configurarEventosSalones() {
         }
     });
     
-    // === EVENTOS DEL MODAL DE SALONES ===
-    // Botón de cerrar (X)
     const closeBtn = document.getElementById('salonModalClose');
     if (closeBtn) {
         closeBtn.addEventListener('click', cerrarModalSalon);
-        console.log('✅ Evento cerrar modal salón configurado');
     }
     
-    // Clic fuera del modal
     const modal = document.getElementById('salonModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -460,10 +551,8 @@ function configurarEventosSalones() {
                 cerrarModalSalon();
             }
         });
-        console.log('✅ Evento click fuera modal salón configurado');
     }
     
-    // Cerrar con tecla ESC
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             const modal = document.getElementById('salonModal');
@@ -473,12 +562,16 @@ function configurarEventosSalones() {
         }
     });
     
-    // Botón toggle salones
     const toggleBtn = document.getElementById('toggleSalonesBtn');
     if (toggleBtn) {
         toggleBtn.addEventListener('click', toggleSalones);
-        console.log('✅ Evento toggle salones configurado');
     }
+    
+    map.getView().on('change:resolution', function() {
+        if (salonMarkerLayer) {
+            salonMarkerLayer.changed();
+        }
+    });
     
     console.log('✅ Eventos de salones configurados correctamente');
 }

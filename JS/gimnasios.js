@@ -1,5 +1,5 @@
 // ============================================
-// GIMNASIOS - VERSIÓN OPENLAYERS
+// GIMNASIOS - VERSIÓN OPTIMIZADA PARA MÓVILES
 // ============================================
 
 // Variables globales
@@ -16,7 +16,7 @@ let gimnasioMarkerLayer = null;
 // INICIALIZAR GIMNASIOS
 // ============================================
 async function inicializarGimnasios() {
-    console.log('💪 Inicializando sistema de gimnasios...');
+    console.log('💪 Inicializando sistema de gimnasios (modo optimizado)...');
     
     await gestorGimnasios.cargarDatos();
     
@@ -44,7 +44,7 @@ async function inicializarGimnasios() {
 // CREAR CAPAS DE GIMNASIOS
 // ============================================
 function crearCapasGimnasios() {
-    // Capa para polígonos
+    // Capa para polígonos - OCULTA POR DEFECTO
     gimnasioPolygonLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
@@ -52,19 +52,23 @@ function crearCapasGimnasios() {
             const color = feature.get('color') || '#FF4500';
             return crearEstiloPoligonoGimnasio(isActive, color);
         },
-        visible: false // ← OCULTO
+        visible: false
     });
     map.addLayer(gimnasioPolygonLayer);
     
-    // Capa para marcadores
+    // Capa para marcadores - SOLO EMOJI (sin círculo)
     gimnasioMarkerLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
+            const gimnasioId = feature.get('gimnasioId');
             const isActive = feature.get('active') || false;
             const color = feature.get('color') || '#FF4500';
             const emoji = feature.get('emoji') || '💪';
-            return crearEstiloMarcadorGimnasio(isActive, color, emoji);
-        }
+            const gimnasioData = feature.get('gimnasioData');
+            return crearEstiloMarcadorGimnasio(gimnasioId, isActive, color, emoji, gimnasioData);
+        },
+        updateWhileAnimating: true,
+        updateWhileInteracting: true
     });
     map.addLayer(gimnasioMarkerLayer);
 }
@@ -92,7 +96,7 @@ function crearFeatureGimnasio(gimnasioId, gimnasio) {
         gimnasioPolygonLayer.getSource().addFeature(polygonFeature);
         gimnasiosPolygons[gimnasioId] = polygonFeature;
         
-        // Crear marcador (usar iconCoords si existe, si no coords)
+        // Crear marcador - SIN CÍRCULO, SOLO EMOJI + NOMBRE
         const markerCoords = gimnasio.iconCoords ? 
             ol.proj.fromLonLat(gimnasio.iconCoords) : 
             ol.proj.fromLonLat(gimnasio.coords);
@@ -131,28 +135,126 @@ function crearEstiloPoligonoGimnasio(active = false, color = '#FF4500') {
     });
 }
 
-function crearEstiloMarcadorGimnasio(active = false, color = '#FF4500', emoji = '💪') {
-    const activeColor = active ? darkenHex(color, 30) : color;
+// ============================================
+// NUEVO ESTILO: EMOJI + NOMBRE SIN CÍRCULO
+// ============================================
+function crearEstiloMarcadorGimnasio(gimnasioId, active = false, color = '#FF4500', emoji = '💪', gimnasioData = null) {
+    // Colores según estado
+    const textColor = active ? '#FFFFFF' : '#333333';
+    const bgColor = active ? darkenHex(color, 30) : 'transparent';
+    
+    // Tamaño de fuente adaptativo según zoom
+    const zoom = map.getView().getZoom();
+    let emojiSize = 18;
+    let nameSize = 10;
+    let padding = 3;
+    
+    if (zoom >= 18) {
+        emojiSize = 28;
+        nameSize = 13;
+        padding = 6;
+    } else if (zoom >= 16) {
+        emojiSize = 24;
+        nameSize = 11;
+        padding = 5;
+    } else if (zoom >= 14) {
+        emojiSize = 20;
+        nameSize = 9;
+        padding = 4;
+    } else if (zoom >= 12) {
+        emojiSize = 16;
+        nameSize = 8;
+        padding = 3;
+    } else {
+        emojiSize = 14;
+        nameSize = 7;
+        padding = 2;
+    }
+    
+    // Obtener nombre corto para mostrar (máximo 12 caracteres)
+    let nombreMostrar = gimnasioId;
+    if (gimnasioData && gimnasioData.nombre) {
+        nombreMostrar = gimnasioData.nombre.length > 12 ? 
+            gimnasioData.nombre.substring(0, 10) + '…' : 
+            gimnasioData.nombre;
+    }
+    
+    // Opción 1: Emoji + Nombre (recomendado)
+    //const displayText = `${emoji} ${nombreMostrar}`;
+    
+    // Opción 2: Solo emoji (más limpio)
+    // const displayText = emoji;
+    
+    // Opción 3: Emoji arriba, nombre abajo
+    const displayText = `${emoji}\n${nombreMostrar}`;
     
     return new ol.style.Style({
-        image: new ol.style.Circle({
-            radius: 22,
+        text: new ol.style.Text({
+            text: displayText,
+            font: `${nameSize}px "Segoe UI", Arial, sans-serif`,
             fill: new ol.style.Fill({
-                color: active ? activeColor : color
+                color: textColor
             }),
             stroke: new ol.style.Stroke({
-                color: active ? darkenHex(color, 50) : '#C4A882',
-                width: 3
-            })
-        }),
-        text: new ol.style.Text({
-            text: emoji,
-            font: '20px Arial',
+                color: active ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.9)',
+                width: active ? 3 : 2
+            }),
             textAlign: 'center',
             textBaseline: 'middle',
-            offsetY: 0
+            offsetY: 0,
+            backgroundFill: new ol.style.Fill({
+                color: bgColor
+            }),
+            backgroundStroke: new ol.style.Stroke({
+                color: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+                width: 2
+            }),
+            padding: [padding, padding + 4, padding, padding + 4]
         })
     });
+}
+
+// ============================================
+// FUNCIONES DE UTILIDAD PARA COLORES
+// ============================================
+function hexToRgba(hex, alpha = 1) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return `rgba(245, 222, 179, ${alpha})`;
+    
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function darkenHex(hex, amount = 20) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) {
+        c = c.split('').map(char => char + char).join('');
+    }
+    
+    let r = parseInt(c.substring(0, 2), 16);
+    let g = parseInt(c.substring(2, 4), 16);
+    let b = parseInt(c.substring(4, 6), 16);
+    
+    r = Math.max(0, r - amount);
+    g = Math.max(0, g - amount);
+    b = Math.max(0, b - amount);
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// ============================================
+// CALCULAR CENTRO DE POLÍGONO
+// ============================================
+function calcularCentroPoligono(coords) {
+    let x = 0, y = 0;
+    coords.forEach(coord => {
+        x += coord[0];
+        y += coord[1];
+    });
+    return [x / coords.length, y / coords.length];
 }
 
 // ============================================
@@ -167,19 +269,16 @@ function abrirModalGimnasio(gimnasioId) {
     
     activeGimnasioId = gimnasioId;
     
-    // Actualizar título
     const titulo = document.getElementById('gimnasioTitulo');
     if (titulo) {
         titulo.textContent = gimnasio.emoji + ' ' + (gimnasio.nombre || 'Gimnasio');
     }
     
-    // Generar contenido
     const lista = document.getElementById('listaGimnasios');
     if (!lista) return;
     
     lista.innerHTML = '';
     
-    // Fotos
     const fotosHTML = gimnasio.fotos && gimnasio.fotos.length > 0 ?
         gimnasio.fotos.map(f => `<img src="${f}" alt="${gimnasio.nombre}" onerror="this.style.display='none'">`).join('') :
         '<p style="color:#94a3b8;font-size:13px;padding:8px;">Sin imágenes disponibles</p>';
@@ -193,6 +292,8 @@ function abrirModalGimnasio(gimnasioId) {
         <div class="gimnasio-info">
             <div class="gimnasio-detalles">
                 <span class="gimnasio-tipo">${gimnasio.tipo || 'Zona de Ejercicio'}</span>
+                ${gimnasio.direccion ? `<p class="gimnasio-dir">📍 ${gimnasio.direccion}</p>` : ''}
+                ${gimnasio.horario ? `<p class="gimnasio-horario">🕐 ${gimnasio.horario}</p>` : ''}
             </div>
             <button class="gimnasio-btn" onclick="trazarRutaGimnasio('${gimnasioId}')">
                 <i class="fas fa-route"></i> Trazar ruta
@@ -232,7 +333,6 @@ function trazarRutaGimnasio(gimnasioId) {
             const userCoords = ol.proj.fromLonLat([currentPosition.lon, currentPosition.lat]);
             const destinoCoords = ol.proj.fromLonLat(gimnasio.coords);
             
-            // Mostrar línea de ruta
             const routeLayer = new ol.layer.Vector({
                 source: new ol.source.Vector(),
                 style: new ol.style.Style({
@@ -251,7 +351,6 @@ function trazarRutaGimnasio(gimnasioId) {
             routeLayer.getSource().addFeature(routeFeature);
             map.addLayer(routeLayer);
             
-            // Mostrar marcador de destino
             const destMarkerLayer = new ol.layer.Vector({
                 source: new ol.source.Vector(),
                 style: new ol.style.Style({
@@ -275,17 +374,18 @@ function trazarRutaGimnasio(gimnasioId) {
             destMarkerLayer.getSource().addFeature(destMarker);
             map.addLayer(destMarkerLayer);
             
-            // Animar vista
             map.getView().animate({
                 center: destinoCoords,
                 zoom: 18,
                 duration: 1000
             });
             
-            // Eliminar ruta después de 10 segundos
             setTimeout(() => {
                 map.removeLayer(routeLayer);
                 map.removeLayer(destMarkerLayer);
+                if (gimnasioPolygonLayer) {
+                    gimnasioPolygonLayer.setVisible(false);
+                }
             }, 10000);
         } catch (error) {
             console.error('❌ Error al trazar ruta:', error);
@@ -298,8 +398,7 @@ function trazarRutaGimnasio(gimnasioId) {
 // ============================================
 // ACTIVAR GIMNASIO
 // ============================================
-function activarGimnasio(gimnasioId) {
-    // Desactivar gimnasio anterior
+function activarGimnasio(gimnasioId, mostrarPoligono = false) {
     if (activeGimnasioId !== null) {
         const prevPolygon = gimnasiosPolygons[activeGimnasioId];
         if (prevPolygon) {
@@ -313,7 +412,6 @@ function activarGimnasio(gimnasioId) {
         }
     }
     
-    // Activar nuevo gimnasio
     const polygon = gimnasiosPolygons[gimnasioId];
     if (polygon) {
         polygon.set('active', true);
@@ -328,7 +426,6 @@ function activarGimnasio(gimnasioId) {
     
     activeGimnasioId = gimnasioId;
     
-    // Centrar el mapa en el gimnasio
     const gimnasio = gestorGimnasios.getGimnasio(gimnasioId);
     if (gimnasio && gimnasio.area && gimnasio.area.length > 0) {
         const coords = gimnasio.area.map(c => ol.proj.fromLonLat(c));
@@ -339,15 +436,14 @@ function activarGimnasio(gimnasioId) {
             duration: 800
         });
     }
+    
     if (mostrarPoligono && gimnasioPolygonLayer) {
         gimnasioPolygonLayer.setVisible(true);
-    } 
-    else {
+    } else {
         if (gimnasioPolygonLayer) {
             gimnasioPolygonLayer.setVisible(false);
         }
     }
-
 }
 
 // ============================================
@@ -412,7 +508,6 @@ function toggleGimnasios() {
 // CONFIGURAR EVENTOS
 // ============================================
 function configurarEventosGimnasios() {
-    // Click en marcadores de gimnasios
     map.on('click', function(evt) {
         const features = map.getFeaturesAtPixel(evt.pixel, {
             hitTolerance: 15,
@@ -430,7 +525,6 @@ function configurarEventosGimnasios() {
         }
     });
     
-    // Hover para cambiar cursor
     map.on('pointermove', function(evt) {
         const pixel = map.getEventPixel(evt.originalEvent);
         const hit = map.hasFeatureAtPixel(pixel, {
@@ -445,15 +539,11 @@ function configurarEventosGimnasios() {
         }
     });
     
-    // === EVENTOS DEL MODAL DE GIMNASIOS ===
-    // Botón de cerrar (X)
     const closeBtn = document.getElementById('gimnasioModalClose');
     if (closeBtn) {
         closeBtn.addEventListener('click', cerrarModalGimnasio);
-        console.log('✅ Evento cerrar modal gimnasio configurado');
     }
     
-    // Clic fuera del modal
     const modal = document.getElementById('gimnasioModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -461,10 +551,8 @@ function configurarEventosGimnasios() {
                 cerrarModalGimnasio();
             }
         });
-        console.log('✅ Evento click fuera modal gimnasio configurado');
     }
     
-    // Cerrar con tecla ESC
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             const modal = document.getElementById('gimnasioModal');
@@ -474,12 +562,16 @@ function configurarEventosGimnasios() {
         }
     });
     
-    // Botón toggle gimnasios
     const toggleBtn = document.getElementById('toggleGimnasiosBtn');
     if (toggleBtn) {
         toggleBtn.addEventListener('click', toggleGimnasios);
-        console.log('✅ Evento toggle gimnasios configurado');
     }
+    
+    map.getView().on('change:resolution', function() {
+        if (gimnasioMarkerLayer) {
+            gimnasioMarkerLayer.changed();
+        }
+    });
     
     console.log('✅ Eventos de gimnasios configurados correctamente');
 }

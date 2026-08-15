@@ -1,5 +1,5 @@
 // ============================================
-// GASOLINERAS - VERSIÓN OPENLAYERS
+// GASOLINERAS - VERSIÓN OPTIMIZADA PARA MÓVILES
 // ============================================
 
 // Variables globales
@@ -13,7 +13,7 @@ let gasolineraMarkerLayer = null;
 // INICIALIZAR GASOLINERAS
 // ============================================
 async function inicializarGasolineras() {
-    console.log('⛽ Inicializando sistema de gasolineras...');
+    console.log('⛽ Inicializando sistema de gasolineras (modo optimizado)...');
     
     await gestorGasolineras.cargarDatos();
     
@@ -41,13 +41,17 @@ async function inicializarGasolineras() {
 // CREAR CAPAS DE GASOLINERAS
 // ============================================
 function crearCapasGasolineras() {
-    // Capa para marcadores
+    // Capa para marcadores - SOLO EMOJI (sin círculo)
     gasolineraMarkerLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
+            const gasolineraId = feature.get('gasolineraId');
+            const gasolineraData = feature.get('gasolineraData');
             const emoji = feature.get('emoji') || '⛽';
-            return crearEstiloMarcadorGasolinera(emoji);
-        }
+            return crearEstiloMarcadorGasolinera(gasolineraId, emoji, gasolineraData);
+        },
+        updateWhileAnimating: true,
+        updateWhileInteracting: true
     });
     map.addLayer(gasolineraMarkerLayer);
 }
@@ -57,7 +61,7 @@ function crearCapasGasolineras() {
 // ============================================
 function crearFeatureGasolinera(gasolineraId, gasolinera) {
     try {
-        // Crear marcador
+        // Crear marcador - SIN CÍRCULO, SOLO EMOJI + NOMBRE
         const markerCoords = ol.proj.fromLonLat(gasolinera.coords);
         
         const markerFeature = new ol.Feature({
@@ -77,26 +81,80 @@ function crearFeatureGasolinera(gasolineraId, gasolinera) {
 }
 
 // ============================================
-// ESTILOS DE GASOLINERAS
+// NUEVO ESTILO: EMOJI + NOMBRE SIN CÍRCULO
 // ============================================
-function crearEstiloMarcadorGasolinera(emoji = '⛽') {
+function crearEstiloMarcadorGasolinera(gasolineraId, emoji = '⛽', gasolineraData = null) {
+    // Colores según estado
+    const textColor = '#333333';
+    const bgColor = 'transparent';
+    
+    // Tamaño de fuente adaptativo según zoom
+    const zoom = map.getView().getZoom();
+    let emojiSize = 18;
+    let nameSize = 10;
+    let padding = 3;
+    
+    if (zoom >= 18) {
+        emojiSize = 28;
+        nameSize = 13;
+        padding = 6;
+    } else if (zoom >= 16) {
+        emojiSize = 24;
+        nameSize = 11;
+        padding = 5;
+    } else if (zoom >= 14) {
+        emojiSize = 20;
+        nameSize = 9;
+        padding = 4;
+    } else if (zoom >= 12) {
+        emojiSize = 16;
+        nameSize = 8;
+        padding = 3;
+    } else {
+        emojiSize = 14;
+        nameSize = 7;
+        padding = 2;
+    }
+    
+    // Obtener nombre corto para mostrar (máximo 12 caracteres)
+    let nombreMostrar = gasolineraId;
+    if (gasolineraData && gasolineraData.nombre) {
+        nombreMostrar = gasolineraData.nombre.length > 12 ? 
+            gasolineraData.nombre.substring(0, 10) + '…' : 
+            gasolineraData.nombre;
+    }
+    
+    // Opción 1: Emoji + Nombre (recomendado)
+    //const displayText = `${emoji} ${nombreMostrar}`;
+    
+    // Opción 2: Solo emoji (más limpio)
+    // const displayText = emoji;
+    
+    // Opción 3: Emoji arriba, nombre abajo
+    const displayText = `${emoji}\n${nombreMostrar}`;
+    
     return new ol.style.Style({
-        image: new ol.style.Circle({
-            radius: 22,
+        text: new ol.style.Text({
+            text: displayText,
+            font: `${nameSize}px "Segoe UI", Arial, sans-serif`,
             fill: new ol.style.Fill({
-                color: '#2563eb'
+                color: textColor
             }),
             stroke: new ol.style.Stroke({
-                color: '#FFFFFF',
-                width: 3
-            })
-        }),
-        text: new ol.style.Text({
-            text: emoji,
-            font: '20px Arial',
+                color: 'rgba(255,255,255,0.9)',
+                width: 2
+            }),
             textAlign: 'center',
             textBaseline: 'middle',
-            offsetY: 0
+            offsetY: 0,
+            backgroundFill: new ol.style.Fill({
+                color: bgColor
+            }),
+            backgroundStroke: new ol.style.Stroke({
+                color: 'rgba(255,255,255,0.2)',
+                width: 2
+            }),
+            padding: [padding, padding + 4, padding, padding + 4]
         })
     });
 }
@@ -107,11 +165,13 @@ function crearEstiloMarcadorGasolinera(emoji = '⛽') {
 function estaAbierto(horario) {
     const ahora = new Date();
     const horaActual = ahora.getHours();
+    const minutosActual = ahora.getMinutes();
+    const horaCompleta = horaActual + (minutosActual / 60);
     
     if (horario.apertura < horario.cierre) {
-        return horaActual >= horario.apertura && horaActual < horario.cierre;
+        return horaCompleta >= horario.apertura && horaCompleta < horario.cierre;
     } else {
-        return horaActual >= horario.apertura || horaActual < horario.cierre;
+        return horaCompleta >= horario.apertura || horaCompleta < horario.cierre;
     }
 }
 
@@ -170,8 +230,8 @@ function abrirPopupGasolinera(gasolineraId) {
     const pixel = map.getPixelFromCoordinate(coords);
     
     overlayElement.style.position = 'absolute';
-    overlayElement.style.left = (pixel[0] - 160) + 'px';
-    overlayElement.style.top = (pixel[1] - 180) + 'px';
+    overlayElement.style.left = (pixel[0] - 180) + 'px';
+    overlayElement.style.top = (pixel[1] - 200) + 'px';
     overlayElement.style.zIndex = '1000';
     
     // Guardar referencia al popup
@@ -310,7 +370,7 @@ function toggleGasolineras() {
                 </svg>
                 Gasolina
             `;
-            btn.title = 'Ocultar gasolinera';
+            btn.title = 'Ocultar gasolineras';
         } else {
             btn.classList.add('oculto');
             btn.innerHTML = `
@@ -319,7 +379,7 @@ function toggleGasolineras() {
                 </svg>
                 Mostrar
             `;
-            btn.title = 'Mostrar gasolinera';
+            btn.title = 'Mostrar gasolineras';
         }
     }
     
@@ -373,8 +433,14 @@ function configurarEventosGasolineras() {
     const toggleBtn = document.getElementById('toggleGasolinerasBtn');
     if (toggleBtn) {
         toggleBtn.addEventListener('click', toggleGasolineras);
-        console.log('✅ Evento toggle gasolineras configurado');
     }
+    
+    // Actualizar estilos al hacer zoom
+    map.getView().on('change:resolution', function() {
+        if (gasolineraMarkerLayer) {
+            gasolineraMarkerLayer.changed();
+        }
+    });
     
     console.log('✅ Eventos de gasolineras configurados correctamente');
 }

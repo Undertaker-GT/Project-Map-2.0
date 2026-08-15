@@ -1,5 +1,5 @@
 // ============================================
-// SECTORES - VERSIÓN CON GESTOR JSON + LOCALSTORAGE
+// SECTORES - CON EMOJIS PARA MEJOR VISUALIZACIÓN
 // ============================================
 
 // Variables globales de sectores
@@ -17,7 +17,7 @@ let sectorMarkerLayer = null;
 // FUNCIÓN PARA INICIALIZAR SECTORES
 // ============================================
 async function inicializarSectores() {
-    console.log('🏘️ Inicializando sistema de sectores...');
+    console.log('🏘️ Inicializando sistema de sectores con emojis...');
     
     // Cargar datos usando el gestor
     await gestorSectores.cargarDatos();
@@ -58,11 +58,11 @@ function crearCapasSectores() {
             const color = feature.get('color') || '#F5DEB3';
             return crearEstiloPoligonoSector(isActive, color);
         },
-        visible: false // ← OCULTO POR DEFECTO
+        visible: false
     });
     map.addLayer(sectorPolygonLayer);
     
-    // Capa para marcadores - SIEMPRE VISIBLE
+    // Capa para marcadores - CON EMOJI
     sectorMarkerLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
@@ -70,7 +70,9 @@ function crearCapasSectores() {
             const isActive = feature.get('active') || false;
             const color = feature.get('color') || '#F5DEB3';
             return crearEstiloMarcadorSector(sectorId, isActive, color);
-        }
+        },
+        updateWhileAnimating: true,
+        updateWhileInteracting: true
     });
     map.addLayer(sectorMarkerLayer);
 }
@@ -130,29 +132,80 @@ function crearEstiloPoligonoSector(active = false, color = '#F5DEB3') {
     });
 }
 
+// ============================================
+// ESTILO CON EMOJI + NÚMERO
+// ============================================
 function crearEstiloMarcadorSector(sectorId, active = false, color = '#F5DEB3') {
-    const activeColor = active ? darkenHex(color, 30) : color;
+    // Colores según estado
+    const textColor = active ? '#FFFFFF' : '#333333';
+    const bgColor = active ? darkenHex(color, 30) : 'transparent';
+    
+    // Tamaño de fuente adaptativo según zoom
+    const zoom = map.getView().getZoom();
+    let emojiSize = 24;
+    let numberSize = 11;
+    let padding = 4;
+    
+    if (zoom >= 18) {
+        emojiSize = 32;
+        numberSize = 14;
+        padding = 6;
+    } else if (zoom >= 16) {
+        emojiSize = 28;
+        numberSize = 12;
+        padding = 5;
+    } else if (zoom >= 14) {
+        emojiSize = 22;
+        numberSize = 10;
+        padding = 4;
+    } else if (zoom >= 12) {
+        emojiSize = 18;
+        numberSize = 8;
+        padding = 3;
+    } else {
+        emojiSize = 14;
+        numberSize = 7;
+        padding = 2;
+    }
+    
+    // Para sectores con IDs largos (como "43 A"), reducir tamaño
+    const isLongId = sectorId.length > 3;
+    if (isLongId) {
+        numberSize = Math.max(numberSize - 2, 6);
+    }
+    
+    // Crear el texto combinado: EMOJI + NÚMERO
+    // El emoji va arriba y el número abajo (en una sola línea con espacio)
+    const displayText = `🏘️ ${sectorId}`;
+    
+    // O si prefieres el emoji SOLO sin número:
+    // const displayText = '🏘️';
+    
+    // O si prefieres el número arriba y emoji abajo:
+    // const displayText = `${sectorId}\n🏘️`;
     
     return new ol.style.Style({
-        image: new ol.style.Circle({
-            radius: 20,
+        text: new ol.style.Text({
+            text: displayText,
+            font: `${numberSize}px "Segoe UI", Arial, sans-serif`,
             fill: new ol.style.Fill({
-                color: active ? activeColor : color
+                color: textColor
             }),
             stroke: new ol.style.Stroke({
-                color: active ? darkenHex(color, 50) : '#C4A882',
-                width: 2
-            })
-        }),
-        text: new ol.style.Text({
-            text: sectorId,
-            font: 'bold 14px Arial',
-            fill: new ol.style.Fill({
-                color: active ? '#FFFFFF' : '#333333'
+                color: active ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.9)',
+                width: active ? 3 : 2
             }),
             textAlign: 'center',
             textBaseline: 'middle',
-            offsetY: 0
+            offsetY: 0,
+            backgroundFill: new ol.style.Fill({
+                color: bgColor
+            }),
+            backgroundStroke: new ol.style.Stroke({
+                color: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+                width: 2
+            }),
+            padding: [padding, padding + 4, padding, padding + 4]
         })
     });
 }
@@ -317,8 +370,6 @@ function toggleSectores() {
     sectoresVisibles = !sectoresVisibles;
     sectorMarkerLayer.setVisible(sectoresVisibles);
     // Los polígonos solo se muestran cuando se traza ruta
-    // No los ocultamos aquí porque ya están ocultos por defecto
-    // solo si están visibles y ocultamos sectores, los ocultamos también
     if (!sectoresVisibles && sectorPolygonLayer) {
         sectorPolygonLayer.setVisible(false);
     }
@@ -414,15 +465,11 @@ function configurarEventosSectores() {
     
     // === Evento de click en el mapa ===
     map.on('click', function(evt) {
-        console.log('🖱️ Click en el mapa en:', evt.pixel);
-        
         // Buscar características en el pixel clickeado
         const features = map.getFeaturesAtPixel(evt.pixel, {
             hitTolerance: 15,
             layers: [sectorMarkerLayer]
         });
-        
-        console.log(`🔍 Features encontrados: ${features ? features.length : 0}`);
         
         if (features && features.length > 0) {
             const feature = features[0];
@@ -430,7 +477,6 @@ function configurarEventosSectores() {
             
             if (sectorId) {
                 console.log(`✅ Click en sector: ${sectorId}`);
-                // Activar sector SIN mostrar polígono
                 activarSector(sectorId, false);
                 abrirModalSector(sectorId);
             }
@@ -445,7 +491,6 @@ function configurarEventosSectores() {
             layers: [sectorMarkerLayer]
         });
         
-        // === CORREGIDO: Obtener el elemento target correctamente ===
         const targetId = map.getTarget();
         const targetElement = typeof targetId === 'string' ? document.getElementById(targetId) : targetId;
         
@@ -458,7 +503,6 @@ function configurarEventosSectores() {
     const modalClose = document.getElementById('sectorModalClose');
     if (modalClose) {
         modalClose.addEventListener('click', cerrarModalSector);
-        console.log('✅ Evento close modal configurado');
     }
     
     const modal = document.getElementById('sectorModal');
@@ -468,7 +512,6 @@ function configurarEventosSectores() {
                 cerrarModalSector();
             }
         });
-        console.log('✅ Evento click fuera modal configurado');
     }
     
     // === Botón de ruta ===
@@ -491,52 +534,23 @@ function configurarEventosSectores() {
             cerrarModalSector();
             trazarRutaASector(sectorModalActivo);
         });
-        console.log('✅ Evento ruta configurado');
     }
     
     // === Botón toggle sectores ===
     const toggleBtn = document.getElementById('toggleSectoresBtn');
     if (toggleBtn) {
         toggleBtn.addEventListener('click', toggleSectores);
-        console.log('✅ Evento toggle sectores configurado');
     }
+    
+    // === Actualizar estilos al hacer zoom ===
+    map.getView().on('change:resolution', function() {
+        if (sectorMarkerLayer) {
+            sectorMarkerLayer.changed();
+        }
+    });
     
     console.log('✅ Eventos de sectores configurados correctamente');
 }
-
-// ============================================
-// FUNCIÓN DE DEBUG PARA VERIFICAR CLICS
-// ============================================
-function verificarClicsEnSectores() {
-    console.log('=== VERIFICANDO SECTORES ===');
-    console.log('Sectores cargados:', Object.keys(sectorMarkers));
-    console.log('Capa marcadores visible:', sectorMarkerLayer?.getVisible());
-    console.log('Capa marcadores:', sectorMarkerLayer);
-    
-    // Agregar un overlay temporal para probar
-    const overlay = new ol.Overlay({
-        position: ol.proj.fromLonLat([-90.682780, 14.411844]),
-        positioning: 'center-center',
-        element: document.createElement('div'),
-        stopEvent: false
-    });
-    
-    const div = overlay.getElement();
-    div.style.background = 'rgba(255,0,0,0.5)';
-    div.style.color = 'white';
-    div.style.padding = '10px';
-    div.style.borderRadius = '5px';
-    div.style.fontSize = '14px';
-    div.textContent = '🔴 TEST';
-    map.addOverlay(overlay);
-    
-    setTimeout(() => {
-        map.removeOverlay(overlay);
-    }, 3000);
-}
-
-// Exponer función de debug
-window.verificarClicsEnSectores = verificarClicsEnSectores;
 
 // ============================================
 // INICIALIZAR

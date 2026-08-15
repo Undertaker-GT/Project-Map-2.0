@@ -1,5 +1,5 @@
 // ============================================
-// COMERCIOS - VERSIÓN OPENLAYERS
+// COMERCIOS - VERSIÓN OPTIMIZADA PARA MÓVILES
 // ============================================
 
 // Variables globales
@@ -16,7 +16,7 @@ let centroMarkerLayer = null;
 // INICIALIZAR COMERCIOS
 // ============================================
 async function inicializarComercios() {
-    console.log('🛍️ Inicializando sistema de comercios...');
+    console.log('🛍️ Inicializando sistema de comercios (modo optimizado)...');
     
     await gestorComercios.cargarDatos();
     
@@ -52,19 +52,22 @@ function crearCapasComercios() {
             const color = feature.get('color') || '#f59e0b';
             return crearEstiloPoligonoCentro(isActive, color);
         },
-        visible: false // ← OCULTO POR DEFECTO
+        visible: false
     });
     map.addLayer(centroPolygonLayer);
     
-    // Capa para marcadores - SIEMPRE VISIBLE
+    // Capa para marcadores - SOLO EMOJI (sin círculo)
     centroMarkerLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: function(feature) {
-            const sectorId = feature.get('centroId');
+            const centroId = feature.get('centroId');
             const isActive = feature.get('active') || false;
             const color = feature.get('color') || '#f59e0b';
-            return crearEstiloMarcadorCentro(isActive, color);
-        }
+            const centroData = feature.get('centroData');
+            return crearEstiloMarcadorCentro(centroId, isActive, color, centroData);
+        },
+        updateWhileAnimating: true, // Mejora rendimiento en móviles
+        updateWhileInteracting: true
     });
     map.addLayer(centroMarkerLayer);
 }
@@ -92,7 +95,7 @@ function crearFeatureCentro(centroId, centro) {
         centroPolygonLayer.getSource().addFeature(polygonFeature);
         centrosPolygons[centroId] = polygonFeature;
         
-        // Crear marcador
+        // Crear marcador - SIN CÍRCULO, SOLO EMOJI + NOMBRE
         const markerCoords = ol.proj.fromLonLat(centro.coords);
         
         const markerFeature = new ol.Feature({
@@ -126,28 +129,114 @@ function crearEstiloPoligonoCentro(active = false, color = '#f59e0b') {
     });
 }
 
-function crearEstiloMarcadorCentro(active = false, color = '#f59e0b') {
-    const activeColor = active ? darkenHex(color, 30) : color;
+// ============================================
+// NUEVO ESTILO: EMOJI + NOMBRE SIN CÍRCULO
+// ============================================
+function crearEstiloMarcadorCentro(centroId, active = false, color = '#f59e0b', centroData = null) {
+    // Colores según estado
+    const textColor = active ? '#FFFFFF' : '#333333';
+    const bgColor = active ? darkenHex(color, 30) : 'transparent';
+    
+    // Tamaño de fuente adaptativo según zoom
+    const zoom = map.getView().getZoom();
+    let emojiSize = 18;
+    let nameSize = 10;
+    let padding = 3;
+    
+    if (zoom >= 18) {
+        emojiSize = 28;
+        nameSize = 13;
+        padding = 6;
+    } else if (zoom >= 16) {
+        emojiSize = 24;
+        nameSize = 11;
+        padding = 5;
+    } else if (zoom >= 14) {
+        emojiSize = 20;
+        nameSize = 9;
+        padding = 4;
+    } else if (zoom >= 12) {
+        emojiSize = 16;
+        nameSize = 8;
+        padding = 3;
+    } else {
+        emojiSize = 14;
+        nameSize = 7;
+        padding = 2;
+    }
+    
+    // Obtener nombre corto para mostrar (máximo 12 caracteres)
+    let nombreMostrar = centroId;
+    if (centroData && centroData.nombre) {
+        nombreMostrar = centroData.nombre.length > 12 ? 
+            centroData.nombre.substring(0, 10) + '…' : 
+            centroData.nombre;
+    }
+    
+    // Opción 1: Emoji + Nombre (recomendado)
+    //const displayText = `🛍️`;
+    
+    // Opción 2: Solo emoji (más limpio)
+    // const displayText = '🛍️';
+    
+    // Opción 3: Emoji + nombre corto en 2 líneas
+    const displayText = `🛍️\n${nombreMostrar}`;
     
     return new ol.style.Style({
-        image: new ol.style.Circle({
-            radius: 22,
+        text: new ol.style.Text({
+            text: displayText,
+            font: `${nameSize}px "Segoe UI", Arial, sans-serif`,
             fill: new ol.style.Fill({
-                color: active ? activeColor : color
+                color: textColor
             }),
             stroke: new ol.style.Stroke({
-                color: active ? darkenHex(color, 50) : '#C4A882',
-                width: 3
-            })
-        }),
-        text: new ol.style.Text({
-            text: '🛍️',
-            font: '16px Arial',
+                color: active ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.9)',
+                width: active ? 3 : 2
+            }),
             textAlign: 'center',
             textBaseline: 'middle',
-            offsetY: 0
+            offsetY: 0,
+            backgroundFill: new ol.style.Fill({
+                color: bgColor
+            }),
+            backgroundStroke: new ol.style.Stroke({
+                color: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+                width: 2
+            }),
+            padding: [padding, padding + 4, padding, padding + 4]
         })
     });
+}
+
+// ============================================
+// FUNCIONES DE UTILIDAD PARA COLORES
+// ============================================
+function hexToRgba(hex, alpha = 1) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return `rgba(245, 222, 179, ${alpha})`;
+    
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function darkenHex(hex, amount = 20) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) {
+        c = c.split('').map(char => char + char).join('');
+    }
+    
+    let r = parseInt(c.substring(0, 2), 16);
+    let g = parseInt(c.substring(2, 4), 16);
+    let b = parseInt(c.substring(4, 6), 16);
+    
+    r = Math.max(0, r - amount);
+    g = Math.max(0, g - amount);
+    b = Math.max(0, b - amount);
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
 // ============================================
@@ -165,7 +254,7 @@ function abrirModalCentro(centroId) {
     // Actualizar título
     const titulo = document.getElementById('centroTitulo');
     if (titulo) {
-        titulo.textContent = centro.nombre;
+        titulo.textContent = centro.nombre || centroId;
     }
     
     // Generar lista de comercios
@@ -312,6 +401,7 @@ function rutaComercio(centroId, comercioIndex) {
         alert('No se pudo obtener tu ubicación actual. Activa el GPS e intenta de nuevo.');
     }
 }
+
 // ============================================
 // ACTIVAR CENTRO COMERCIAL
 // ============================================
@@ -412,14 +502,11 @@ function configurarEventosComercios() {
     });
     
     // === EVENTOS DEL MODAL DE COMERCIOS ===
-    // Botón de cerrar (X)
     const closeBtn = document.getElementById('centroModalClose');
     if (closeBtn) {
         closeBtn.addEventListener('click', cerrarModalCentro);
-        console.log('✅ Evento cerrar modal comercios configurado');
     }
     
-    // Clic fuera del modal
     const modal = document.getElementById('centroModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -427,7 +514,6 @@ function configurarEventosComercios() {
                 cerrarModalCentro();
             }
         });
-        console.log('✅ Evento click fuera modal comercios configurado');
     }
     
     // Cerrar con tecla ESC
@@ -440,23 +526,21 @@ function configurarEventosComercios() {
         }
     });
     
-    // === BOTÓN TOGGLE COMERCIOS (NUEVO) ===
+    // === BOTÓN TOGGLE COMERCIOS ===
     const toggleBtn = document.getElementById('toggleComerciosBtn');
     if (toggleBtn) {
         toggleBtn.addEventListener('click', toggleComercios);
-        console.log('✅ Evento toggle comercios configurado');
     }
+    
+    // === Actualizar estilos al hacer zoom ===
+    map.getView().on('change:resolution', function() {
+        if (centroMarkerLayer) {
+            centroMarkerLayer.changed();
+        }
+    });
     
     console.log('✅ Eventos de comercios configurados correctamente');
 }
-// ============================================
-// INICIALIZAR
-// ============================================
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        inicializarComercios();
-    }, 800);
-});
 
 // ============================================
 // MOSTRAR/OCULTAR COMERCIOS
@@ -496,3 +580,12 @@ function toggleComercios() {
     
     console.log(`🛍️ Comercios ${centrosVisibles ? 'visible' : 'oculto'}`);
 }
+
+// ============================================
+// INICIALIZAR
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        inicializarComercios();
+    }, 800);
+});
