@@ -1,0 +1,117 @@
+{
+    "version": "1.0.0",
+    "ultimaActualizacion": "2026-08-09",
+    "centros": {
+        "cc1": {
+            "nombre": "Plaza Comercial Principal",
+            "coords": [-90.68359284400914, 14.41333238520521],
+            "color": "#f59e0b",
+            "area": [
+                [-90.68394355781562, 14.413538107033249],
+                [-90.68351658488673, 14.413720870327019],
+                [-90.68336962271772, 14.41344967312765],
+                [-90.68383311878921, 14.413246696125922],
+                [-90.68394355781562, 14.413538107033249]
+            ],
+            "comercios": [
+                {
+                    "nombre": "Farmacia Sana",
+                    "coords": [-90.68215, 14.41282],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/farmacia1.jpg",
+                        "image/farmacia2.jpg"
+                    ]
+                },
+                {
+                    "nombre": "Comida Coreana y Sushi",
+                    "coords": [-90.68376464605086, 14.413544836184823],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/centro-comercial/Plaza-Principal/comidaCoreana2.jpeg"
+                    ]
+                },
+                {
+                    "nombre": "Panificadora y Pasteleria (Hermano Pedro)",
+                    "coords": [-90.68363120615659, 14.413558474553508],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/centro-comercial/Plaza-Principal/Panaderia Pedro.jpeg"
+                    ]
+                },
+                {
+                    "nombre": "Casa del Pollo Rey",
+                    "coords": [-90.68340321839177, 14.413526651691651],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/farmacia1.jpg",
+                        "image/farmacia2.jpg"
+                    ]
+                },
+                {
+                    "nombre": "Libreria BETEL",
+                    "coords": [-90.68344546318119, 14.413545485631277],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/centro-comercial/Plaza-Principal/libreria.jpeg"
+                    ]
+                },
+                {
+                    "nombre": "Tienda el Super Ahorro",
+                    "coords": [-90.68205, 14.41280],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/centro-comercial/Plaza-Principal/libreria.jpeg"
+                    ]
+                }
+            ]
+        },
+        "ccm": {
+            "nombre": "Mini Plaza Comercial",
+            "coords": [-90.68329669889735, 14.41295403808743],
+            "color": "#8b5cf6",
+            "area": [
+                [-90.68341605719125, 14.41307613425725],
+                [-90.68332687374694, 14.413113802211027],
+                [-90.68328664061416, 14.413031971820564],
+                [-90.68338051792396, 14.413002097226077],
+                [-90.68341605719125, 14.41307613425725]
+            ],
+            "comercios": [
+                {
+                    "nombre": "Tienda",
+                    "coords": [-90.68343870018641, 14.413049836139432],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/centro-comercial/Mini-plaza/Tienda.jpeg"
+                    ]
+                },
+                {
+                    "nombre": "Clínica Veterinaria y Estética Canina",
+                    "coords": [-90.68339310263593, 14.413025157128862],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/centro-comercial/Mini-plaza/Veterinaria.jpeg"
+                    ]
+                },
+                {
+                    "nombre": "Pupusería Sofía",
+                    "coords": [-90.68332068299694, 14.41300632314527],
+                    "telefono": "5555-1234",
+                    "horario": "8:00 AM - 9:00 PM",
+                    "fotos": [
+                        "image/centro-comercial/Mini-plaza/Pupuseria.jpeg"
+                    ]
+                }
+            ]
+        }
+    }
+}

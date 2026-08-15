@@ -1,0 +1,25 @@
+{
+    "version": "1.0.0",
+    "ultimaActualizacion": "2026-08-09",
+    "salones": {
+        "salon_principal": {
+            "nombre": "Salón de Eventos",
+            "coords": [-90.68276267501264, 14.413256962182045],
+            "iconCoords": [-90.68290751429399, 14.413290733423848],
+            "color": "#CC794B",
+            "emoji": "🏡",
+            "tipo": "Zona de Eventos",
+            "area": [
+                [-90.68316704622568, 14.413384173619766],
+                [-90.68277745538094, 14.413344557371417],
+                [-90.68280494802234, 14.413201029593033],
+                [-90.68318984500145, 14.413254284254617],
+                [-90.68316704622568, 14.413384173619766]
+            ],
+            "fotos": [
+                "image/areas-recreativas/Salon/salon1.jpeg",
+                "image/areas-recreativas/Salon/salon2.jpeg"
+            ]
+        }
+    }
+}

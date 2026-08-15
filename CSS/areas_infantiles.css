@@ -1,0 +1,207 @@
+/* ================================================================ */
+/* ESTILOS PARA ÁREAS INFANTILES */
+/* ================================================================ */
+
+/* Modal de áreas infantiles */
+#areaModal .modal-content {
+    max-width: 450px;
+    width: 95%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#areaModal .modal-body {
+    padding: 16px 20px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Tarjeta de área */
+.area-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.area-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.area-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.area-icono {
+    font-size: 40px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fef3c7;
+    border-radius: 50%;
+}
+
+.area-detalles h4 {
+    margin: 0 0 4px 0;
+    color: #1e293b;
+    font-size: 16px;
+}
+
+.area-tipo {
+    display: inline-block;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.area-btn-ruta {
+    background: #FFD700;
+    color: #1e293b;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.area-btn-ruta:hover {
+    background: #f5c400;
+    transform: scale(1.02);
+}
+
+/* ================================================================ */
+/* ESTILOS PARA EL BOTÓN DE ÁREAS INFANTILES */
+/* ================================================================ */
+
+.toggle-areas-btn {
+    position: absolute;
+    top: 185px; /* Debajo del botón de deportes */
+    right: 20px;
+    z-index: 1000;
+    background: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    transition: all 0.3s ease;
+}
+
+.toggle-areas-btn:hover {
+    background: #f0f0f0;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    transform: scale(1.05);
+}
+
+.toggle-areas-btn:active {
+    transform: scale(0.95);
+}
+
+.toggle-areas-btn svg {
+    color: #FFD700;
+}
+
+.toggle-areas-btn.oculto {
+    background: #fffbeb;
+    border: 1px solid #FFD700;
+}
+
+.toggle-areas-btn.oculto svg {
+    color: #b45309;
+}
+
+/* ================================================================ */
+/* VERSIÓN MÓVIL */
+/* ================================================================ */
+
+@media (max-width: 768px) {
+    .toggle-areas-btn {
+        top: 165px;
+        right: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .toggle-areas-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    #areaModal .modal-content {
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    #areaModal .modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e0e0e0;
+        flex-shrink: 0;
+    }
+
+    #areaModal .modal-header h2 {
+        font-size: 18px;
+    }
+
+    #areaModal .modal-body {
+        padding: 12px 16px 20px;
+        max-height: calc(100vh - 120px);
+    }
+
+    .area-icono {
+        font-size: 32px;
+        width: 48px;
+        height: 48px;
+    }
+}
+
+@media (max-width: 480px) {
+    .toggle-sectores-btn {
+        top: 10px;
+        right: 10px;
+    }
+    
+    .toggle-comercios-btn {
+        top: 60px;
+        right: 10px;
+    }
+    
+    .toggle-deportes-btn {
+        top: 110px;
+        right: 10px;
+    }
+    
+    .toggle-areas-btn {
+        top: 160px;
+        right: 10px;
+    }
+}
