@@ -1,5 +1,5 @@
 // ============================================
-// ÁREAS INFANTILES - VERSIÓN OPTIMIZADA PARA MÓVILES
+// ÁREAS INFANTILES - VERSIÓN CON OSRM
 // ============================================
 
 // Variables globales
@@ -67,7 +67,7 @@ function crearCapasAreas() {
             const areaData = feature.get('areaData');
             return crearEstiloMarcadorArea(areaId, isActive, color, emoji, areaData);
         },
-        updateWhileAnimating: true, // Mejora rendimiento en móviles
+        updateWhileAnimating: true,
         updateWhileInteracting: true
     });
     map.addLayer(areaMarkerLayer);
@@ -96,7 +96,7 @@ function crearFeatureArea(areaId, area) {
         areaPolygonLayer.getSource().addFeature(polygonFeature);
         areasPolygons[areaId] = polygonFeature;
         
-        // Crear marcador - SIN CÍRCULO, SOLO EMOJI + NOMBRE
+        // Crear marcador
         const markerCoords = area.iconCoords ? 
             ol.proj.fromLonLat(area.iconCoords) : 
             ol.proj.fromLonLat(area.coords);
@@ -135,58 +135,32 @@ function crearEstiloPoligonoArea(active = false, color = '#FFD700') {
     });
 }
 
-// ============================================
-// NUEVO ESTILO: EMOJI + NOMBRE SIN CÍRCULO
-// ============================================
 function crearEstiloMarcadorArea(areaId, active = false, color = '#FFD700', emoji = '🛝', areaData = null) {
-    // Colores según estado
     const textColor = active ? '#FFFFFF' : '#333333';
     const bgColor = active ? darkenHex(color, 30) : 'transparent';
     
-    // Tamaño de fuente adaptativo según zoom
     const zoom = map.getView().getZoom();
-    let emojiSize = 18;
     let nameSize = 10;
     let padding = 3;
     
     if (zoom >= 18) {
-        emojiSize = 28;
         nameSize = 13;
         padding = 6;
     } else if (zoom >= 16) {
-        emojiSize = 24;
         nameSize = 11;
         padding = 5;
     } else if (zoom >= 14) {
-        emojiSize = 20;
         nameSize = 9;
         padding = 4;
     } else if (zoom >= 12) {
-        emojiSize = 16;
         nameSize = 8;
         padding = 3;
     } else {
-        emojiSize = 14;
         nameSize = 7;
         padding = 2;
     }
     
-    // Obtener nombre corto para mostrar (máximo 12 caracteres)
-    let nombreMostrar = areaId;
-    if (areaData && areaData.nombre) {
-        nombreMostrar = areaData.nombre.length > 12 ? 
-            areaData.nombre.substring(0, 10) + '…' : 
-            areaData.nombre;
-    }
-    
-    // Opción 1: Emoji + Nombre (recomendado)
-    //const displayText = `${emoji} ${nombreMostrar}`;
-    
-    // Opción 2: Solo emoji (más limpio)
     const displayText = emoji;
-    
-    // Opción 3: Emoji arriba, nombre abajo
-    // const displayText = `${emoji}\n${nombreMostrar}`;
     
     return new ol.style.Style({
         text: new ol.style.Text({
@@ -215,7 +189,7 @@ function crearEstiloMarcadorArea(areaId, active = false, color = '#FFD700', emoj
 }
 
 // ============================================
-// FUNCIONES DE UTILIDAD PARA COLORES
+// FUNCIONES DE UTILIDAD
 // ============================================
 function hexToRgba(hex, alpha = 1) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -245,9 +219,6 @@ function darkenHex(hex, amount = 20) {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-// ============================================
-// CALCULAR CENTRO DE POLÍGONO
-// ============================================
 function calcularCentroPoligono(coords) {
     let x = 0, y = 0;
     coords.forEach(coord => {
@@ -255,6 +226,17 @@ function calcularCentroPoligono(coords) {
         y += coord[1];
     });
     return [x / coords.length, y / coords.length];
+}
+
+// ============================================
+// CERRAR MODAL DE ÁREA INFANTIL
+// ============================================
+function cerrarModalArea() {
+    const modal = document.getElementById('areaModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    activeAreaId = null;
 }
 
 // ============================================
@@ -269,13 +251,11 @@ function abrirModalArea(areaId) {
     
     activeAreaId = areaId;
     
-    // Actualizar título
     const titulo = document.getElementById('areaTitulo');
     if (titulo) {
         titulo.textContent = area.emoji + ' ' + (area.nombre || 'Área Infantil');
     }
     
-    // Generar contenido
     const lista = document.getElementById('listaAreas');
     if (!lista) return;
     
@@ -298,100 +278,6 @@ function abrirModalArea(areaId) {
     lista.appendChild(item);
     
     document.getElementById('areaModal').classList.add('active');
-}
-
-// ============================================
-// CERRAR MODAL DE ÁREA INFANTIL
-// ============================================
-function cerrarModalArea() {
-    const modal = document.getElementById('areaModal');
-    if (modal) {
-        modal.classList.remove('active');
-    }
-    activeAreaId = null;
-}
-
-// ============================================
-// RUTA AL ÁREA INFANTIL
-// ============================================
-function trazarRutaArea(areaId) {
-    const area = gestorAreasInfantiles.getArea(areaId);
-    if (!area) return;
-    
-    cerrarModalArea();
-    activarArea(areaId, true);
-    
-    console.log(`🧭 Ruta a ${area.nombre}`);
-    
-    if (currentPosition) {
-        try {
-            const userCoords = ol.proj.fromLonLat([currentPosition.lon, currentPosition.lat]);
-            const destinoCoords = ol.proj.fromLonLat(area.coords);
-            
-            // Mostrar línea de ruta
-            const routeLayer = new ol.layer.Vector({
-                source: new ol.source.Vector(),
-                style: new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#FFD700',
-                        width: 4,
-                        lineDash: [10, 5]
-                    })
-                })
-            });
-            
-            const routeFeature = new ol.Feature({
-                geometry: new ol.geom.LineString([userCoords, destinoCoords])
-            });
-            
-            routeLayer.getSource().addFeature(routeFeature);
-            map.addLayer(routeLayer);
-            
-            // Mostrar marcador de destino
-            const destMarkerLayer = new ol.layer.Vector({
-                source: new ol.source.Vector(),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 12,
-                        fill: new ol.style.Fill({
-                            color: '#FFD700'
-                        }),
-                        stroke: new ol.style.Stroke({
-                            color: '#FFFFFF',
-                            width: 3
-                        })
-                    })
-                })
-            });
-            
-            const destMarker = new ol.Feature({
-                geometry: new ol.geom.Point(destinoCoords)
-            });
-            
-            destMarkerLayer.getSource().addFeature(destMarker);
-            map.addLayer(destMarkerLayer);
-            
-            // Animar vista
-            map.getView().animate({
-                center: destinoCoords,
-                zoom: 18,
-                duration: 1000
-            });
-            
-            // Eliminar ruta después de 10 segundos
-            setTimeout(() => {
-                map.removeLayer(routeLayer);
-                map.removeLayer(destMarkerLayer);
-                if (areaPolygonLayer) {
-                    areaPolygonLayer.setVisible(false);
-                }
-            }, 10000);
-        } catch (error) {
-            console.error('❌ Error al trazar ruta:', error);
-        }
-    } else {
-        alert('No se pudo obtener tu ubicación actual. Activa el GPS e intenta de nuevo.');
-    }
 }
 
 // ============================================
@@ -427,16 +313,18 @@ function activarArea(areaId, mostrarPoligono = false) {
     
     activeAreaId = areaId;
     
-    // Centrar el mapa en el área
-    const area = gestorAreasInfantiles.getArea(areaId);
-    if (area && area.area && area.area.length > 0) {
-        const coords = area.area.map(c => ol.proj.fromLonLat(c));
-        const center = calcularCentroPoligono(coords);
-        map.getView().animate({
-            center: center,
-            zoom: 17,
-            duration: 800
-        });
+    // Centrar el mapa en el área (solo si se muestra el polígono)
+    if (mostrarPoligono) {
+        const area = gestorAreasInfantiles.getArea(areaId);
+        if (area && area.area && area.area.length > 0) {
+            const coords = area.area.map(c => ol.proj.fromLonLat(c));
+            const center = calcularCentroPoligono(coords);
+            map.getView().animate({
+                center: center,
+                zoom: 17,
+                duration: 800
+            });
+        }
     }
 
     if (mostrarPoligono && areaPolygonLayer) {
@@ -445,6 +333,237 @@ function activarArea(areaId, mostrarPoligono = false) {
         if (areaPolygonLayer) {
             areaPolygonLayer.setVisible(false);
         }
+    }
+}
+
+// ============================================
+// RUTA AL ÁREA INFANTIL - CON OSRM
+// ============================================
+function trazarRutaArea(areaId) {
+    const area = gestorAreasInfantiles.getArea(areaId);
+    if (!area) {
+        console.warn(`⚠️ Área ${areaId} no encontrada`);
+        return;
+    }
+    
+    if (!currentPosition) {
+        alert('⚠️ Esperando ubicación actual...');
+        return;
+    }
+    
+    cerrarModalArea();
+    
+    console.log(`🧭 Trazando ruta a ${area.nombre}`);
+    console.log(`📍 Ubicación actual: ${currentPosition.lat}, ${currentPosition.lon}`);
+    
+    activarArea(areaId, true);
+    
+    const origen = [currentPosition.lon, currentPosition.lat];
+    const destino = area.coords || area.area[0];
+    
+    console.log(`📍 Origen: [${origen.join(', ')}]`);
+    console.log(`📍 Destino: [${destino.join(', ')}]`);
+    
+    mostrarIndicadorCarga('Calculando ruta al área infantil...');
+    
+    gestorRutas.calcularRuta(origen, destino)
+        .then(() => {
+            console.log('✅ Ruta calculada exitosamente');
+            ocultarIndicadorCarga();
+            gestorRutas.iniciarSeguimiento(3000);
+            mostrarPanelInstruccionesArea(areaId);
+            reproducirSonidoRuta();
+        })
+        .catch((error) => {
+            console.error('❌ Error al trazar ruta:', error);
+            ocultarIndicadorCarga();
+            alert('No se pudo calcular la ruta. Intenta de nuevo.\n\nError: ' + error.message);
+        });
+}
+
+// ============================================
+// MOSTRAR PANEL DE INSTRUCCIONES PARA ÁREA INFANTIL
+// ============================================
+function mostrarPanelInstruccionesArea(areaId) {
+    const area = gestorAreasInfantiles.getArea(areaId);
+    if (!area) return;
+    
+    const panelAnterior = document.getElementById('routePanel');
+    if (panelAnterior) panelAnterior.remove();
+    
+    const panel = document.createElement('div');
+    panel.id = 'routePanel';
+    panel.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        padding: 16px 24px;
+        z-index: 9999;
+        max-width: 90%;
+        min-width: 280px;
+        font-family: Arial, sans-serif;
+        animation: slideUp 0.3s ease;
+        border: 2px solid #FFD700;
+    `;
+    
+    const emoji = area.emoji || '🛝';
+    const nombre = area.nombre || 'Área Infantil';
+    
+    panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:14px;color:#666;">${emoji} ${nombre}</span>
+            <button id="cancelRouteBtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">×</button>
+        </div>
+        <div id="routeInstructions" style="font-size:15px;color:#333;padding:4px 0;">
+            <span style="color:#FFD700;">●</span> Cargando instrucciones...
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#888;">
+            <span id="routeDistance">Distancia: 0 m</span>
+            <span id="routeTime">Tiempo: 0 min</span>
+        </div>
+        <div style="margin-top:8px;height:3px;background:#e0e0e0;border-radius:3px;overflow:hidden;">
+            <div id="routeProgress" style="height:100%;width:0%;background:linear-gradient(90deg,#FFD700,#fbbf24);transition:width 0.5s;"></div>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:#999;text-align:center;">
+            🧒 Zona de juegos infantiles
+        </div>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    document.getElementById('cancelRouteBtn').addEventListener('click', () => {
+        gestorRutas.cancelarRuta();
+        panel.remove();
+        if (areaPolygonLayer) {
+            areaPolygonLayer.setVisible(false);
+        }
+        if (activeAreaId !== null) {
+            const prevMarker = areasMarkers[activeAreaId];
+            if (prevMarker) {
+                prevMarker.set('active', false);
+                prevMarker.changed();
+            }
+            activeAreaId = null;
+        }
+    });
+    
+    gestorRutas.on('onRutaActualizada', (data) => {
+        const inst = gestorRutas.getInstruccionActual();
+        const instruccionText = inst ? inst.instruccion : 'Continuar...';
+        
+        const instrEl = document.getElementById('routeInstructions');
+        if (instrEl) {
+            instrEl.innerHTML = `<span style="color:#FFD700;">●</span> ${instruccionText}`;
+        }
+        
+        const distEl = document.getElementById('routeDistance');
+        if (distEl) {
+            const distRestante = data.distanciaRestante || 0;
+            distEl.textContent = `Distancia: ${Math.round(distRestante)} m`;
+        }
+        
+        const timeEl = document.getElementById('routeTime');
+        if (timeEl) {
+            const timeRestante = data.tiempoRestante || 0;
+            const minutos = Math.floor(timeRestante / 60);
+            const segundos = Math.floor(timeRestante % 60);
+            timeEl.textContent = `Tiempo: ${minutos}:${segundos.toString().padStart(2, '0')}`;
+        }
+        
+        const progressEl = document.getElementById('routeProgress');
+        if (progressEl && gestorRutas.distanciaTotal > 0) {
+            const progress = ((gestorRutas.distanciaTotal - (data.distanciaRestante || 0)) / gestorRutas.distanciaTotal) * 100;
+            progressEl.style.width = `${Math.min(100, progress)}%`;
+        }
+    });
+    
+    setTimeout(() => {
+        const distEl = document.getElementById('routeDistance');
+        if (distEl && gestorRutas.distanciaTotal) {
+            distEl.textContent = `Distancia: ${Math.round(gestorRutas.distanciaTotal)} m`;
+        }
+        
+        const timeEl = document.getElementById('routeTime');
+        if (timeEl && gestorRutas.tiempoTotal) {
+            const minutos = Math.floor(gestorRutas.tiempoTotal / 60);
+            const segundos = Math.floor(gestorRutas.tiempoTotal % 60);
+            timeEl.textContent = `Tiempo: ${minutos}:${segundos.toString().padStart(2, '0')}`;
+        }
+    }, 500);
+}
+
+// ============================================
+// FUNCIONES AUXILIARES COMPARTIDAS
+// ============================================
+function mostrarIndicadorCarga(mensaje) {
+    let loader = document.getElementById('routeLoader');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'routeLoader';
+        loader.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 30px 40px;
+            border-radius: 16px;
+            z-index: 10000;
+            text-align: center;
+            min-width: 200px;
+            backdrop-filter: blur(10px);
+        `;
+        loader.innerHTML = `
+            <div style="display:inline-block;width:40px;height:40px;border:4px solid rgba(255,255,255,0.1);border-radius:50%;border-top-color:#FFD700;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>
+            <p style="margin:0;font-size:16px;font-family:Arial,sans-serif;" id="loaderText">Calculando...</p>
+        `;
+        document.body.appendChild(loader);
+        
+        if (!document.getElementById('spinStyle')) {
+            const style = document.createElement('style');
+            style.id = 'spinStyle';
+            style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+            document.head.appendChild(style);
+        }
+    }
+    
+    const textEl = loader.querySelector('#loaderText');
+    if (textEl) textEl.textContent = mensaje || 'Calculando...';
+    loader.style.display = 'block';
+}
+
+function ocultarIndicadorCarga() {
+    const loader = document.getElementById('routeLoader');
+    if (loader) loader.style.display = 'none';
+}
+
+function reproducirSonidoRuta() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        
+        oscillator.frequency.value = 880;
+        oscillator.type = 'sine';
+        gain.gain.value = 0.1;
+        
+        oscillator.start();
+        setTimeout(() => {
+            oscillator.frequency.value = 1100;
+        }, 100);
+        setTimeout(() => {
+            oscillator.stop();
+        }, 300);
+    } catch (e) {
+        // Silenciar errores de audio
     }
 }
 
