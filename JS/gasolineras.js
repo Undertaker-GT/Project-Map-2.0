@@ -501,21 +501,17 @@ function toggleGasolineras() {
         if (gasolinerasVisibles) {
             btn.classList.remove('oculto');
             btn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-                </svg>
-                Gasolina
+                <i class="fas fa-gas-pump"></i>
+                Gasolinera
             `;
             btn.title = 'Ocultar gasolineras';
         } else {
             btn.classList.add('oculto');
             btn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-                </svg>
-                Mostrar
+                <i class="fas fa-gas-pump"></i>
+                Mostrar Gasolinera
             `;
-            btn.title = 'Mostrar gasolineras';
+            btn.title = 'Mostrar Gasolinera';
         }
     }
     

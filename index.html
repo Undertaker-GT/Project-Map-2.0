@@ -6,6 +6,7 @@
     <title>Mapa Residencial</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.2.1/ol.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="CSS/mapa.css">
     <link rel="stylesheet" href="CSS/sectores.css">
     <link rel="stylesheet" href="CSS/comercios.css">
@@ -15,194 +16,217 @@
     <link rel="stylesheet" href="CSS/salones_eventos.css">
     <link rel="stylesheet" href="CSS/gimnasios.css">
     <link rel="stylesheet" href="CSS/gasolineras.css">
+    <link rel="stylesheet" href="CSS/menu.css">
 </head>
 <body>
+    <!-- Overlay del menú -->
+    <div id="menuOverlay" class="menu-overlay" onclick="closeSideMenu()"></div>
+
+    <!-- Menú lateral -->
+    <nav id="sideMenu" class="side-menu" role="navigation" aria-label="Menú principal">
+        <div class="side-menu-header">
+            <div class="menu-logo">
+                <img src="image/logo-gps.png" alt="Logo GPS Residencial">
+                <span>mapa 2</span>
+            </div>
+            <button class="close-side-menu" onclick="toggleSideMenu()" aria-label="Cerrar menú">×</button>
+        </div>
+
+        <div class="side-menu-content">
+
+            <!-- ===== SECCIÓN: CAPAS DEL MAPA ===== -->
+            <div class="menu-section">
+                <div class="menu-section-title">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Capas del mapa</span>
+                </div>
+
+                <!-- Sectores -->
+                <button id="toggleSectoresBtn" class="menu-item toggle-layer" data-layer="sectores">
+                    <i class="fas fa-city"></i>
+                    <span class="menu-item-text">Sectores</span>
+                </button>
+
+                <!-- Comercios -->
+                <button id="toggleComerciosBtn" class="menu-item toggle-layer" data-layer="comercios">
+                    <i class="fas fa-store"></i>
+                    <span class="menu-item-text">Comercios</span>
+                </button>
+
+                <!-- Deportes -->
+                <button id="toggleDeportesBtn" class="menu-item toggle-layer" data-layer="deportes">
+                    <i class="fas fa-futbol"></i>
+                    <span class="menu-item-text">Centros Deportivos</span>
+                </button>
+
+                <!-- Áreas Infantiles -->
+                <button id="toggleAreasBtn" class="menu-item toggle-layer" data-layer="areas">
+                    <i class="fas fa-child"></i>
+                    <span class="menu-item-text">Áreas infantiles</span>
+                </button>
+
+                <!-- Centros Educativos -->
+                <button id="toggleCentrosEducativosBtn" class="menu-item toggle-layer" data-layer="educativos">
+                    <i class="fas fa-school"></i>
+                    <span class="menu-item-text">Colegio</span>
+                </button>
+
+                <!-- Salón de Eventos -->
+                <button id="toggleSalonesBtn" class="menu-item toggle-layer" data-layer="salones">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span class="menu-item-text">Salón de eventos</span>
+                </button>
+
+                <!-- Gimnasio -->
+                <button id="toggleGimnasiosBtn" class="menu-item toggle-layer" data-layer="gimnasios">
+                    <i class="fas fa-dumbbell"></i>
+                    <span class="menu-item-text">Gimnasio</span>
+                </button>
+
+                <!-- Gasolinera -->
+                <button id="toggleGasolinerasBtn" class="menu-item toggle-layer" data-layer="gasolineras">
+                    <i class="fas fa-gas-pump"></i>
+                    <span class="menu-item-text">Gasolinera</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
     <div id="map">
-        <!-- Botón de Mi Ubicación -->
+        <!-- Barra de búsqueda -->
+        <div class="map-search-bar">
+            <!-- BOTÓN MENÚ DENTRO DE LA BARRA -->
+            <button class="search-menu-btn" onclick="toggleSideMenu()" aria-label="Abrir menú">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <input 
+                type="text" 
+                id="mapSearchInput" 
+                placeholder="Buscar sector (Ej: 14, 23, 35)"
+                onkeydown="if(event.key==='Enter') buscarDesdeBarra()"
+            >
+
+            <button class="search-go-btn" onclick="buscarDesdeBarra()" aria-label="Buscar">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+        
+        <!-- Botones flotantes que se mantienen (solo Mi Ubicación y Volver) -->
         <button id="miUbicacionBtn" class="ubicacion-btn" title="Centrar en mi ubicación">
             <svg viewBox="0 0 24 24" width="24" height="24">
                 <path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
             </svg>
-            Mi ubicación
         </button>
 
-        <!-- Botón Volver a Residencial -->
         <button id="residencialBtn" class="residencial-btn" title="Volver a la residencial" style="display: none;">
             <svg viewBox="0 0 24 24" width="24" height="24">
                 <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
             </svg>
-            Volver
         </button>
 
-        <!-- Botón Mostrar/Ocultar Sectores -->
-        <button id="toggleSectoresBtn" class="toggle-sectores-btn" title="Mostrar/Ocultar sectores">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-            </svg>
-            Sectores
-        </button>
-
-        <!-- Botón Mostrar/Ocultar Comercios -->
-        <button id="toggleComerciosBtn" class="toggle-comercios-btn" title="Mostrar/Ocultar comercios">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-            </svg>
-            Comercios
-        </button>
-
-        <!-- Botón Mostrar/Ocultar Deportes -->
-        <button id="toggleDeportesBtn" class="toggle-deportes-btn" title="Mostrar/Ocultar centros deportivos">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-            </svg>
-            Deportes
-        </button>
-
-        <!-- Botón Mostrar/Ocultar Áreas Infantiles -->
-        <button id="toggleAreasBtn" class="toggle-areas-btn" title="Mostrar/Ocultar áreas infantiles">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-            </svg>
-            Áreas
-        </button>
-
-        <!-- Botón Mostrar/Ocultar Centros Educativos -->
-        <button id="toggleCentrosEducativosBtn" class="toggle-centros-educativos-btn" title="Mostrar/Ocultar centros educativos">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-            </svg>
-            Colegios
-        </button>
-
-        <!-- Botón Mostrar/Ocultar Salón de Eventos -->
-        <button id="toggleSalonesBtn" class="toggle-salones-btn" title="Mostrar/Ocultar salón de eventos">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-            </svg>
-            Salón
-        </button>
-
-        <!-- Botón Mostrar/Ocultar Gimnasio -->
-        <button id="toggleGimnasiosBtn" class="toggle-gimnasios-btn" title="Mostrar/Ocultar gimnasio">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-            </svg>
-            GYM
-        </button>
-
-        <!-- Botón Mostrar/Ocultar Gasolinera -->
-        <button id="toggleGasolinerasBtn" class="toggle-gasolineras-btn" title="Mostrar/Ocultar gasolinera">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-            </svg>
-            Gasolina
-        </button>
-    </div>
-
-    <!-- Modal de sector -->
-    <div id="sectorModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="sectorModalTitle">Sector</h2>
-                <span class="modal-close" id="sectorModalClose">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p><strong>Total de casas:</strong> <span id="sectorTotalCasas">0</span></p>
-                <div class="modal-input-group">
-                    <label for="sectorHouseInput">Número de casa (opcional):</label>
-                    <input type="text" id="sectorHouseInput" placeholder="Ej: 24" maxlength="10">
+        <!-- Modal de sector -->
+        <div id="sectorModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="sectorModalTitle">Sector</h2>
+                    <span class="modal-close" id="sectorModalClose">&times;</span>
                 </div>
-                <button id="sectorRutaBtn" class="modal-btn">
-                    <svg viewBox="0 0 24 24" width="18" height="18" style="display:inline-block;vertical-align:middle;margin-right:8px;">
-                        <path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                    </svg>
-                    Trazar ruta
-                </button>
+                <div class="modal-body">
+                    <p><strong>Total de casas:</strong> <span id="sectorTotalCasas">0</span></p>
+                    <div class="modal-input-group">
+                        <label for="sectorHouseInput">Número de casa (opcional):</label>
+                        <input type="text" id="sectorHouseInput" placeholder="Ej: 24" maxlength="10">
+                    </div>
+                    <button id="sectorRutaBtn" class="modal-btn">
+                        <svg viewBox="0 0 24 24" width="18" height="18" style="display:inline-block;vertical-align:middle;margin-right:8px;">
+                            <path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        Trazar ruta
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Centro Comercial -->
+        <div id="centroModal" class="modal">
+            <div class="modal-content modal-comercios">
+                <div class="modal-header">
+                    <h2 id="centroTitulo">Centro Comercial</h2>
+                    <span class="modal-close" id="centroModalClose">&times;</span>
+                </div>
+                <div class="modal-body modal-body-scroll">
+                    <div id="listaComercios"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Deportes -->
+        <div id="deporteModal" class="modal">
+            <div class="modal-content modal-deportes">
+                <div class="modal-header">
+                    <h2 id="deporteTitulo">Centro Deportivo</h2>
+                    <span class="modal-close" id="deporteModalClose">&times;</span>
+                </div>
+                <div class="modal-body modal-body-scroll">
+                    <div id="listaDeportes"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Área Infantil -->
+        <div id="areaModal" class="modal">
+            <div class="modal-content modal-areas">
+                <div class="modal-header">
+                    <h2 id="areaTitulo">Área Infantil</h2>
+                    <span class="modal-close" id="areaModalClose">&times;</span>
+                </div>
+                <div class="modal-body modal-body-scroll">
+                    <div id="listaAreas"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Centro Educativo -->
+        <div id="centroEducativoModal" class="modal">
+            <div class="modal-content modal-centro-educativo">
+                <div class="modal-header">
+                    <h2 id="centroEducativoTitulo">Centro Educativo</h2>
+                    <span class="modal-close" id="centroEducativoModalClose">&times;</span>
+                </div>
+                <div class="modal-body modal-body-scroll">
+                    <div id="listaCentrosEducativos"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Salón de Eventos -->
+        <div id="salonModal" class="modal">
+            <div class="modal-content modal-salon">
+                <div class="modal-header">
+                    <h2 id="salonTitulo">Salón de Eventos</h2>
+                    <span class="modal-close" id="salonModalClose">&times;</span>
+                </div>
+                <div class="modal-body modal-body-scroll">
+                    <div id="listaSalones"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Gimnasio -->
+        <div id="gimnasioModal" class="modal">
+            <div class="modal-content modal-gimnasio">
+                <div class="modal-header">
+                    <h2 id="gimnasioTitulo">Gimnasio</h2>
+                    <span class="modal-close" id="gimnasioModalClose">&times;</span>
+                </div>
+                <div class="modal-body modal-body-scroll">
+                    <div id="listaGimnasios"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Centro Comercial -->
-    <div id="centroModal" class="modal">
-        <div class="modal-content modal-comercios">
-            <div class="modal-header">
-                <h2 id="centroTitulo">Centro Comercial</h2>
-                <span class="modal-close" id="centroModalClose">&times;</span>
-            </div>
-            <div class="modal-body modal-body-scroll">
-                <div id="listaComercios"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Deportes -->
-    <div id="deporteModal" class="modal">
-        <div class="modal-content modal-deportes">
-            <div class="modal-header">
-                <h2 id="deporteTitulo">Centro Deportivo</h2>
-                <span class="modal-close" id="deporteModalClose">&times;</span>
-            </div>
-            <div class="modal-body modal-body-scroll">
-                <div id="listaDeportes"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Área Infantil -->
-    <div id="areaModal" class="modal">
-        <div class="modal-content modal-areas">
-            <div class="modal-header">
-                <h2 id="areaTitulo">Área Infantil</h2>
-                <span class="modal-close" id="areaModalClose">&times;</span>
-            </div>
-            <div class="modal-body modal-body-scroll">
-                <div id="listaAreas"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Centro Educativo -->
-    <div id="centroEducativoModal" class="modal">
-        <div class="modal-content modal-centro-educativo">
-            <div class="modal-header">
-                <h2 id="centroEducativoTitulo">Centro Educativo</h2>
-                <span class="modal-close" id="centroEducativoModalClose">&times;</span>
-            </div>
-            <div class="modal-body modal-body-scroll">
-                <div id="listaCentrosEducativos"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Salón de Eventos -->
-    <div id="salonModal" class="modal">
-        <div class="modal-content modal-salon">
-            <div class="modal-header">
-                <h2 id="salonTitulo">Salón de Eventos</h2>
-                <span class="modal-close" id="salonModalClose">&times;</span>
-            </div>
-            <div class="modal-body modal-body-scroll">
-                <div id="listaSalones"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Gimnasio -->
-    <div id="gimnasioModal" class="modal">
-        <div class="modal-content modal-gimnasio">
-            <div class="modal-header">
-                <h2 id="gimnasioTitulo">Gimnasio</h2>
-                <span class="modal-close" id="gimnasioModalClose">&times;</span>
-            </div>
-            <div class="modal-body modal-body-scroll">
-                <div id="listaGimnasios"></div>
-            </div>
-        </div>
-    </div>
-
-    </div>
-
-    
     <script src="https://cdn.jsdelivr.net/npm/ol@v10.2.1/dist/ol.min.js"></script>
     <!-- Scripts -->
     <script src="JS/OpenLayers.js"></script>
@@ -223,5 +247,6 @@
     <script src="JS/gestorGasolineras.js"></script>
     <script src="JS/gasolineras.js"></script>
     <script src="JS/gestorRutas.js"></script>
+    <script src="JS/menu.js"></script>
 </body>
 </html>

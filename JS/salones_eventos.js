@@ -619,19 +619,15 @@ function toggleSalones() {
         if (salonesVisibles) {
             btn.classList.remove('oculto');
             btn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-                </svg>
-                Salón
+                <i class="fas fa-calendar-alt"></i>
+                Salón de eventos
             `;
             btn.title = 'Ocultar salón de eventos';
         } else {
             btn.classList.add('oculto');
             btn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-                </svg>
-                Mostrar
+                <i class="fas fa-calendar-alt"></i>
+                Mostrar Salón de eventos
             `;
             btn.title = 'Mostrar salón de eventos';
         }

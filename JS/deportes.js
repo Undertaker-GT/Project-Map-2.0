@@ -611,21 +611,17 @@ function toggleDeportes() {
         if (deportesVisibles) {
             btn.classList.remove('oculto');
             btn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-                </svg>
-                Deportes
+                <i class="fas fa-futbol"></i>
+                Centros Deportivos
             `;
             btn.title = 'Ocultar deportes';
         } else {
             btn.classList.add('oculto');
             btn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/>
-                </svg>
-                Mostrar
+                <i class="fas fa-futbol"></i>
+                Mostar Centros Deportivos
             `;
-            btn.title = 'Mostrar deportes';
+            btn.title = 'Mostrar Centros Deportivos';
         }
     }
     
