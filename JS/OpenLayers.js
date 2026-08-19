@@ -32,77 +32,44 @@ let watchId = null;
 let isTracking = false;
 let accuracyCircle = null;
 
-// Creamos la capa para el marcador de ubicacion
+// Creamos la capa para el marcador de ubicacion (VERSIÓN SIMPLIFICADA)
 function crearCapaMarcador() {
     markerLayer = new ol.layer.Vector({
         source: new ol.source.Vector(),
-        style: function(feature) {
-            const isPulsing = feature.get('pulsing') || false;
-            const radius = isPulsing ? 12 : 8;
-            
-            return [
-                // Círculo interior (marcador principal)
-                new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: radius,
-                        fill: new ol.style.Fill({
-                            color: '#4285F4'
-                        }),
-                        stroke: new ol.style.Stroke({
-                            color: '#FFFFFF',
-                            width: 3
-                        })
-                    })
+        style: new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 8,
+                fill: new ol.style.Fill({
+                    color: '#4285F4'
                 }),
-                // Círculo exterior (efecto de pulso)
-                new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 20,
-                        fill: new ol.style.Fill({
-                            color: 'rgba(66, 133, 244, 0.2)'
-                        }),
-                        stroke: new ol.style.Stroke({
-                            color: 'rgba(66, 133, 244, 0.4)',
-                            width: 2
-                        })
-                    })
+                stroke: new ol.style.Stroke({
+                    color: '#FFFFFF',
+                    width: 2
                 })
-            ];
-        }
+            })
+        })
     });
     
     map.addLayer(markerLayer);
 }
 
-// Funcion para actualizar constantemente el marcador de ubicación
-function actualizarMarcador(coordinates, isPulsing = false) {
+// Funcion para actualizar constantemente el marcador de ubicación (VERSIÓN SIMPLIFICADA)
+function actualizarMarcador(coordinates) {
     if (markerFeature) {
         markerFeature.getGeometry().setCoordinates(coordinates);
-        markerFeature.set('pulsing', isPulsing);
-        markerFeature.changed();
     } else {
         markerFeature = new ol.Feature({
-            geometry: new ol.geom.Point(coordinates),
-            pulsing: isPulsing
+            geometry: new ol.geom.Point(coordinates)
         });
         markerLayer.getSource().addFeature(markerFeature);
     }
     
     // Actualizar círculo de precisión
     actualizarCirculoPrecision(coordinates);
-    
-    if (isPulsing) {
-        setTimeout(() => {
-            if (markerFeature) {
-                markerFeature.set('pulsing', false);
-                markerFeature.changed();
-            }
-        }, 2000);
-    }
 }
 
 // ============================================
-// CÍRCULO DE PRECISIÓN (GPS ACCURACY)
+// CÍRCULO DE PRECISIÓN (VERSIÓN SIMPLIFICADA)
 // ============================================
 
 function actualizarCirculoPrecision(coordinates) {
@@ -116,7 +83,7 @@ function actualizarCirculoPrecision(coordinates) {
     if (currentPosition && currentPosition.accuracy) {
         const radius = currentPosition.accuracy; // en metros
         
-        // Crear círculo de precisión
+        // Crear círculo de precisión con estilo simple
         const circleFeature = new ol.Feature({
             geometry: new ol.geom.Circle(coordinates, radius)
         });
@@ -127,7 +94,7 @@ function actualizarCirculoPrecision(coordinates) {
             }),
             style: new ol.style.Style({
                 fill: new ol.style.Fill({
-                    color: 'rgba(66, 133, 244, 0.1)'
+                    color: 'rgba(66, 133, 244, 0.15)'
                 }),
                 stroke: new ol.style.Stroke({
                     color: 'rgba(66, 133, 244, 0.3)',
@@ -184,8 +151,8 @@ function iniciarSeguimiento() {
             // Convertir coordenadas al sistema de OpenLayers
             const coordinates = ol.proj.fromLonLat([lon, lat]);
             
-            // Actualizar marcador (sin pulso para movimiento fluido)
-            actualizarMarcador(coordinates, false);
+            // Actualizar marcador (sin efectos visuales)
+            actualizarMarcador(coordinates);
             
             // Si es la primera vez, centrar el mapa en la ubicación
             if (!isTracking) {
@@ -265,8 +232,6 @@ function actualizarBotonEstado(activo) {
         btn.style.color = '#333';
     }
 }
-
-
 
 
 // ============================================
